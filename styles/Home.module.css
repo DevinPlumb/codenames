@@ -1,0 +1,97 @@
+.container {
+  min-height: 100vh;
+  padding: 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.main {
+  padding: 2rem 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.title {
+  margin: 0;
+  line-height: 1.15;
+  font-size: 4rem;
+  text-align: center;
+}
+
+.teamSelection {
+  margin: 2rem 0;
+  text-align: center;
+}
+
+.teamSelection button {
+  margin: 0 1rem;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  color: white;
+}
+
+.redTeam {
+  background-color: #ff4444;
+}
+
+.blueTeam {
+  background-color: #4444ff;
+}
+
+.gameBoard {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  max-width: 800px;
+  margin: 2rem auto;
+}
+
+.card {
+  aspect-ratio: 1.5;
+  padding: 1rem;
+  border: 2px solid #ccc;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  background-color: #f8f8f8;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: scale(1.05);
+}
+
+.red {
+  background-color: #ff4444;
+  color: white;
+}
+
+.blue {
+  background-color: #4444ff;
+  color: white;
+}
+
+.neutral {
+  background-color: #dddddd;
+}
+
+.assassin {
+  background-color: #000000;
+  color: white;
+}
+
+.gameInfo {
+  margin: 1rem 0;
+  text-align: center;
+}
