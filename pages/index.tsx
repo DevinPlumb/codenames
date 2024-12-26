@@ -1,166 +1,155 @@
-import Head from 'next/head';
 import { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { cn } from "@/lib/utils";
 
-type Team = 'red' | 'blue';
-type CardType = 'red' | 'blue' | 'neutral' | 'assassin';
-type Card = {
+interface Card {
   word: string;
-  type: CardType;
+  type: 'red' | 'blue' | 'neutral' | 'assassin';
   revealed: boolean;
-};
+}
+
+// Word bank - you can expand this with more words
+const WORD_BANK = [
+  'AFRICA', 'AGENT', 'AIR', 'ALIEN', 'AMAZON', 'ANGEL', 'ANTARCTICA', 'APPLE',
+  'ARM', 'BACK', 'BAND', 'BANK', 'BAR', 'BARK', 'BAT', 'BATTERY',
+  'BEACH', 'BEAR', 'BEAT', 'BED', 'BEIJING', 'BELL', 'BELT', 'BERLIN',
+  'BERRY', 'BOARD', 'BOND', 'BOOM', 'BOW', 'BOX', 'BRIDGE', 'BRUSH',
+  'BUFFALO', 'BUG', 'CANADA', 'CAPITAL', 'CAR', 'CARD', 'CARNIVAL', 'CAST',
+  'CAT', 'CELL', 'CENTAUR', 'CENTER', 'CHAIR', 'CHANGE', 'CHARGE', 'CHECK',
+  'CHEST', 'CHICKEN', 'CHINA', 'CHOCOLATE', 'CHURCH', 'CIRCLE', 'CLIFF', 'CLOAK'
+];
+
+function shuffleArray<T>(array: T[]): T[] {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+
+function initializeGameBoard(): Card[] {
+  // Randomly select 25 words
+  const selectedWords = shuffleArray(WORD_BANK).slice(0, 25);
+  
+  // Create card types array (9 red, 8 blue, 7 neutral, 1 assassin)
+  // First team (red) gets one extra card
+  const cardTypes: Card['type'][] = [
+    ...Array(9).fill('red'),
+    ...Array(8).fill('blue'),
+    ...Array(7).fill('neutral'),
+    'assassin'
+  ];
+
+  // Shuffle card types
+  const shuffledTypes = shuffleArray(cardTypes);
+
+  // Create cards array
+  return selectedWords.map((word, index) => ({
+    word,
+    type: shuffledTypes[index],
+    revealed: false
+  }));
+}
 
 export default function Home() {
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [gameBoard, setGameBoard] = useState<Card[]>([]);
-  const [currentTurn, setCurrentTurn] = useState<Team>('red');
-  const [clue, setClue] = useState<string>('');
-  const [clueNumber, setClueNumber] = useState<number>(0);
+  const [currentTeam, setCurrentTeam] = useState<'red' | 'blue'>('red');
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [cards, setCards] = useState<Card[]>([]);
 
+  // Initialize game board on component mount
   useEffect(() => {
-    initializeGame();
+    setCards(initializeGameBoard());
   }, []);
 
-  const initializeGame = () => {
-    // Example words - in a real implementation, you'd have a larger word bank
-    const words = [
-      'APPLE', 'BANK', 'CAR', 'DOG', 'EGG',
-      'FISH', 'GAME', 'HAT', 'ICE', 'JAM',
-      'KING', 'LAMP', 'MOON', 'NOTE', 'OAK',
-      'PEN', 'QUEEN', 'RAT', 'SUN', 'TIME',
-      'URN', 'VAN', 'WALL', 'X-RAY', 'YOGA'
-    ];
-
-    const cardTypes: CardType[] = [
-      ...Array(8).fill('red'),
-      ...Array(8).fill('blue'),
-      ...Array(7).fill('neutral'),
-      'assassin'
-    ];
-
-    const shuffledBoard = words.map((word, index) => ({
-      word,
-      type: cardTypes[index],
-      revealed: false
-    }));
-
-    setGameBoard(shuffledBoard);
-  };
-
   const handleCardClick = (index: number) => {
-    if (!selectedTeam || gameBoard[index].revealed) return;
+    const newCards = [...cards];
+    const card = newCards[index];
+    
+    if (!card.revealed) {
+      card.revealed = true;
+      setCards(newCards);
 
-    const newBoard = [...gameBoard];
-    newBoard[index].revealed = true;
-    setGameBoard(newBoard);
-
-    if (newBoard[index].type === 'assassin') {
-      alert('Game Over! The assassin was revealed!');
-      initializeGame();
+      if (card.type === 'assassin') {
+        setIsGameOver(true);
+      } else if (card.type !== currentTeam) {
+        // If wrong team's card is selected, automatically end turn
+        setCurrentTeam(currentTeam === 'red' ? 'blue' : 'red');
+      }
     }
   };
 
+  const handleEndTurn = () => {
+    setCurrentTeam(currentTeam === 'red' ? 'blue' : 'red');
+  };
+
+  const handleNewGame = () => {
+    setCards(initializeGameBoard());
+    setIsGameOver(false);
+    setCurrentTeam('red');
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-slate-50">
-      <Head>
-        <title>Codenames - AI Edition</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+    <div className="container mx-auto p-4">
+      {/* Game status bar */}
+      <div className="flex justify-between items-center mb-6">
+        <div className={`text-2xl font-bold ${currentTeam === 'red' ? 'text-red-500' : 'text-blue-500'}`}>
+          {currentTeam === 'red' ? 'Red Team\'s Turn' : 'Blue Team\'s Turn'}
+        </div>
+        <div className="flex gap-4">
+          <button
+            onClick={handleNewGame}
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md"
+          >
+            New Game
+          </button>
+          <button
+            onClick={handleEndTurn}
+            className={`end-turn-button ${
+              currentTeam === 'red' ? 'end-turn-button-red' : 'end-turn-button-blue'
+            }`}
+          >
+            End {currentTeam === 'red' ? 'Red' : 'Blue'} Team's Turn
+          </button>
+        </div>
+      </div>
 
-      <main className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-center mb-8 bg-gradient-to-r from-blue-400 to-red-400 text-transparent bg-clip-text">
-          Codenames - AI Edition
-        </h1>
+      {/* Game board */}
+      <div className="grid grid-cols-5 gap-4">
+        {cards.map((card, index) => (
+          <button
+            key={index}
+            onClick={() => handleCardClick(index)}
+            className={`codenames-card ${
+              card.revealed
+                ? card.type === 'red'
+                  ? 'codenames-card-red'
+                  : card.type === 'blue'
+                  ? 'codenames-card-blue'
+                  : card.type === 'assassin'
+                  ? 'codenames-card-assassin'
+                  : 'codenames-card-neutral'
+                : 'codenames-card-hidden'
+            }`}
+          >
+            {card.word}
+          </button>
+        ))}
+      </div>
 
-        {!selectedTeam ? (
-          <div className="max-w-md mx-auto space-y-6 text-center">
-            <Card className="p-6 bg-slate-800/50 border-slate-700">
-              <h2 className="text-2xl font-semibold mb-6">Choose your team</h2>
-              <div className="flex gap-4 justify-center">
-                <Button
-                  variant="default"
-                  size="lg"
-                  onClick={() => setSelectedTeam('red')}
-                  className="bg-red-500 hover:bg-red-600 text-white w-32"
-                >
-                  Red Team
-                </Button>
-                <Button
-                  variant="default"
-                  size="lg"
-                  onClick={() => setSelectedTeam('blue')}
-                  className="bg-blue-500 hover:bg-blue-600 text-white w-32"
-                >
-                  Blue Team
-                </Button>
-              </div>
-            </Card>
+      {/* Game Over Modal */}
+      {isGameOver && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-slate-900 p-8 rounded-lg text-center">
+            <h2 className="text-2xl font-bold mb-4">Game Over!</h2>
+            <p className="mb-4">The assassin was revealed! {currentTeam === 'red' ? 'Blue' : 'Red'} team wins!</p>
+            <button
+              onClick={handleNewGame}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md"
+            >
+              Play Again
+            </button>
           </div>
-        ) : (
-          <>
-            <div className="mb-8 text-center space-y-2">
-              <div className="inline-flex gap-4 items-center justify-center bg-slate-800/50 rounded-full px-6 py-2">
-                <span className={cn(
-                  "px-3 py-1 rounded-full",
-                  selectedTeam === 'red' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'
-                )}>
-                  {selectedTeam.toUpperCase()} TEAM
-                </span>
-                <span className="text-slate-400">|</span>
-                <span className={cn(
-                  "px-3 py-1 rounded-full",
-                  currentTurn === 'red' 
-                    ? 'bg-red-500/20 text-red-400' 
-                    : currentTurn === 'blue' 
-                    ? 'bg-blue-500/20 text-blue-400'
-                    : 'bg-gray-500/20 text-gray-400'
-                )}>
-                  {currentTurn ? `${currentTurn.toUpperCase()}'s TURN` : 'GAME STARTING...'}
-                </span>
-              </div>
-              {clue && (
-                <div className="bg-slate-800/50 rounded-full px-6 py-2 inline-flex">
-                  <span>Clue: {clue} ({clueNumber})</span>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-5 gap-3 max-w-5xl mx-auto">
-              {gameBoard.map((card, index) => (
-                <HoverCard key={index} openDelay={200}>
-                  <HoverCardTrigger asChild>
-                    <button
-                      onClick={() => handleCardClick(index)}
-                      className={cn(
-                        "aspect-[3/2] rounded-lg p-4 text-center font-medium transition-all hover:scale-105",
-                        "border border-slate-700 shadow-lg",
-                        card.revealed
-                          ? {
-                              'red': 'bg-red-500 text-white',
-                              'blue': 'bg-blue-500 text-white',
-                              'neutral': 'bg-slate-600 text-slate-200',
-                              'assassin': 'bg-black text-white',
-                            }[card.type]
-                          : 'bg-slate-800/50 hover:bg-slate-800/80'
-                      )}
-                    >
-                      {card.word}
-                    </button>
-                  </HoverCardTrigger>
-                  {!card.revealed && (
-                    <HoverCardContent className="w-auto bg-slate-900 border-slate-800">
-                      <p className="text-sm text-slate-400">Click to reveal</p>
-                    </HoverCardContent>
-                  )}
-                </HoverCard>
-              ))}
-            </div>
-          </>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 } 
