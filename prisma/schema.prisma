@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id
+  email        String?      @unique
+  openaiApiKey String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  games        GamePlayer[]
+
+  @@map("users")
+}
+
+model Game {
+  id            String       @id @default(cuid())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  completedAt   DateTime?
+  currentTeam   String
+  gameState     Json
+  winner        String?
+  endReason     String?
+  turnStartedAt DateTime?
+  currentClue    String?   // The current word clue
+  currentNumber  Int?      // The number associated with the clue
+  clueGiver     String?   // ID of the player who gave the clue
+  players       GamePlayer[]
+  moves         Move[]
+
+  @@map("games")
+}
+
+model GamePlayer {
+  id        String   @id @default(cuid())
+  userId    String
+  gameId    String
+  team      String   // 'red' | 'blue'
+  role      String   // 'spymaster' | 'operative'
+  game      Game     @relation(fields: [gameId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([gameId, team, role]) // Only one spymaster/operative per team
+  @@map("game_players")
+}
+
+model Move {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  gameId    String
+  playerId  String
+  cardIndex Int
+  cardType  String
+  teamTurn  String
+  game      Game     @relation(fields: [gameId], references: [id])
+
+  @@map("moves")
+}
