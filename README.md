@@ -19,7 +19,7 @@ The Spymaster gives a one-word clue followed by a number, indicating how many ca
 ## Technologies Used
 
 ### Frontend
-- **Next.js+** - React framework providing:
+- **Next.js** - React framework providing:
   - Server-side rendering
   - API routes
   - File-based routing
