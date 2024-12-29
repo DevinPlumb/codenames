@@ -5,6 +5,7 @@ import AuthComponent from '../components/Auth'
 import { initializeGameBoard } from '../utils/game'
 import { GameSummary, Player } from '../types/game'
 import NewGameModal from '../components/NewGameModal'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 export default function Home() {
   const session = useSession()
@@ -14,6 +15,11 @@ export default function Home() {
   const [apiKey, setApiKey] = useState<string | null>(null)
   const supabase = useSupabaseClient()
   const [showNewGameModal, setShowNewGameModal] = useState(false)
+  const [hasApiKey, setHasApiKey] = useState(false)
+  const [apiStatus, setApiStatus] = useState({
+    openai: false,
+    anthropic: false
+  })
 
   useEffect(() => {
     if (session) {
@@ -38,7 +44,11 @@ export default function Home() {
     try {
       const res = await fetch('/api/user/settings')
       const data = await res.json()
-      setApiKey(data?.openaiApiKey)
+      setApiStatus({
+        openai: data.openaiApiKey,
+        anthropic: data.anthropicKey
+      })
+      setHasApiKey(!!(data.openaiApiKey || data.anthropicKey))
     } catch (error) {
       console.error('Error loading settings:', error)
     }
@@ -76,7 +86,7 @@ export default function Home() {
   }
 
   if (!session) return <AuthComponent />
-  if (loading) return <div>Loading...</div>
+  if (loading) return <LoadingSpinner />
 
   const stats = games.reduce((acc, game) => {
     const playerTeam = game.players.find((p: Player) => p.userId === session.user.id)?.team
@@ -96,9 +106,28 @@ export default function Home() {
               <h1 className="text-2xl font-mono font-bold text-slate-200">
                 Welcome, {session.user.email}
               </h1>
-              <p className="text-sm font-mono text-slate-400 mt-1">
-                API Key: {apiKey ? '••••••••' : 'Not set'}
-              </p>
+              <div className="flex gap-4 mt-2">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    apiStatus.openai 
+                      ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' 
+                      : 'bg-slate-500'
+                  }`} />
+                  <p className="text-sm font-mono text-slate-400">
+                    OpenAI {apiStatus.openai ? 'Connected' : 'Not Set'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    apiStatus.anthropic 
+                      ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' 
+                      : 'bg-slate-500'
+                  }`} />
+                  <p className="text-sm font-mono text-slate-400">
+                    Anthropic {apiStatus.anthropic ? 'Connected' : 'Not Set'}
+                  </p>
+                </div>
+              </div>
             </div>
             <div className="flex gap-4">
               <button
@@ -129,13 +158,21 @@ export default function Home() {
               <p className="text-red-400 font-mono">Losses: {stats.losses}</p>
             </div>
           </div>
-          <button
-            onClick={() => setShowNewGameModal(true)}
-            className="w-full px-4 py-3 bg-emerald-500/80 text-white rounded-xl font-mono 
-                     hover:bg-emerald-600/80 transition-all duration-200 hover:scale-[1.02] shadow-lg"
-          >
-            New Game
-          </button>
+          {!hasApiKey ? (
+            <div className="text-center">
+              <p className="text-red-400 font-mono mb-4">
+                Please add an OpenAI or Anthropic API key in settings to play
+              </p>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowNewGameModal(true)}
+              className="w-full px-4 py-3 bg-emerald-500/80 text-white rounded-xl font-mono 
+                       hover:bg-emerald-600/80 transition-all duration-200 hover:scale-[1.02] shadow-lg"
+            >
+              New Game
+            </button>
+          )}
         </div>
 
         <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl p-6 shadow-lg mb-8">
@@ -146,8 +183,12 @@ export default function Home() {
               .map(game => (
                 <div
                   key={game.id}
-                  onClick={() => router.push(`/game/${game.id}`)}
-                  className="bg-slate-800/50 p-4 rounded-lg cursor-pointer hover:bg-slate-800/70 transition-all"
+                  onClick={() => hasApiKey && router.push(`/game/${game.id}`)}
+                  className={`bg-slate-800/50 p-4 rounded-lg ${
+                    hasApiKey 
+                      ? 'cursor-pointer hover:bg-slate-800/70 transition-all' 
+                      : 'opacity-50 cursor-not-allowed'
+                  }`}
                 >
                   <div className="flex justify-between items-center font-mono">
                     <span className="text-slate-400">
@@ -162,6 +203,9 @@ export default function Home() {
                   </div>
                 </div>
               ))}
+            {games.filter(game => !game.completedAt).length === 0 && (
+              <p className="text-slate-400 font-mono text-sm">No ongoing games</p>
+            )}
           </div>
         </div>
 

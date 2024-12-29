@@ -6,6 +6,7 @@ import { Card } from '../../utils/game'
 import { Player } from '../../types/game'
 import TurnTimer from '../../components/TurnTimer'
 import ClueInput from '../../components/ClueInput'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface GameData {
   id: string
@@ -167,11 +168,7 @@ export default function GamePage() {
   }
 
   if (!session) return <AuthComponent />
-  if (loading) return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 p-4 flex items-center justify-center">
-      <p className="text-slate-200 font-mono">Loading game...</p>
-    </div>
-  )
+  if (loading) return <LoadingSpinner />
   if (!game || !game.players) return null
 
   const playerTeam = game.players.find((p: Player) => p.userId === session.user.id)?.team
