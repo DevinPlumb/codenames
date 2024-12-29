@@ -5,6 +5,7 @@ import AuthDebug from '../components/AuthDebug'
 import { useRouter } from 'next/router'
 import type { APIError } from '@/types/api'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { toast } from 'react-hot-toast'
 
 interface ValidationResult {
   valid: boolean
@@ -32,6 +33,10 @@ export default function Settings() {
     anthropic: false
   })
   const [pageLoading, setPageLoading] = useState(true)
+  const [apiStatus, setApiStatus] = useState({
+    openai: false,
+    anthropic: false
+  })
 
   useEffect(() => {
     if (session?.user) {
@@ -45,6 +50,10 @@ export default function Settings() {
       const data = await res.json()
       setOpenaiKey(data.openaiApiKey || '')
       setAnthropicKey(data.anthropicKey || '')
+      setApiStatus({
+        openai: !!data.openaiApiKey,
+        anthropic: !!data.anthropicKey
+      })
     } catch (err) {
       const error = err as APIError
       console.error('Error loading settings:', {
@@ -53,39 +62,43 @@ export default function Settings() {
     }
   }
 
-  const saveSettings = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setValidationErrors({ openai: false, anthropic: false })
+
     try {
-      setLoading(true)
       const res = await fetch('/api/user/settings', {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          openaiApiKey: openaiKey,
-          anthropicKey: anthropicKey 
-        }),
+        body: JSON.stringify({
+          openaiApiKey: openaiKey || null,
+          anthropicKey: anthropicKey || null
+        })
       })
 
-      const data = await res.json() as ValidationResponse & { saved: boolean }
-      
-      setValidationErrors({
-        openai: openaiKey ? !data.validationResults.openai.valid : false,
-        anthropic: anthropicKey ? !data.validationResults.anthropic.valid : false
-      })
+      const data = await res.json()
 
-      if (data.saved) {
-        setMessage('Settings saved successfully')
-        setTimeout(() => setMessage(''), 3000)
-        await loadSettings()
-      } else {
-        setMessage('Please fix invalid API keys')
-        setTimeout(() => setMessage(''), 3000)
+      if (!res.ok) {
+        setValidationErrors({
+          openai: data.validationResults?.openai?.valid === false,
+          anthropic: data.validationResults?.anthropic?.valid === false
+        })
+        toast.error(data.message || 'Failed to update settings')
+        return
       }
 
-    } catch (err) {
-      const error = err as APIError
-      console.error('Error saving settings:', error)
-      setMessage('Error connecting to server')
-      setTimeout(() => setMessage(''), 3000)
+      if (data.saved) {
+        toast.success('Settings updated successfully')
+        // Update API status
+        setApiStatus({
+          openai: data.openaiApiKey,
+          anthropic: data.anthropicKey
+        })
+      }
+    } catch (error) {
+      console.error('Error updating settings:', error)
+      toast.error('Failed to update settings')
     } finally {
       setLoading(false)
     }
@@ -163,7 +176,7 @@ export default function Settings() {
           </div>
 
           <button
-            onClick={saveSettings}
+            onClick={handleSubmit}
             disabled={loading}
             className="w-full px-4 py-3 bg-emerald-500/80 text-white rounded-xl font-mono 
                      hover:bg-emerald-600/80 transition-all duration-200 hover:scale-[1.02] 

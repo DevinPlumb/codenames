@@ -1,6 +1,7 @@
 import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
+import { toast, Toaster } from 'react-hot-toast'
 import AuthComponent from '../components/Auth'
 import { initializeGameBoard } from '../utils/game'
 import { GameSummary, Player } from '../types/game'
@@ -54,34 +55,43 @@ export default function Home() {
     }
   }
 
-  const handleCreateGame = async (team: 'red' | 'blue', role: 'spymaster' | 'operative') => {
+  const handleCreateGame = async (
+    team: 'red' | 'blue',
+    role: 'spymaster' | 'operative',
+    aiModels: {
+      redSpymaster?: string
+      blueSpymaster?: string
+      redOperative?: string
+      blueOperative?: string
+    }
+  ) => {
     try {
+      setLoading(true)
       const res = await fetch('/api/games', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           team,
           role,
-          gameState: initializeGameBoard()
+          aiModels
         })
       })
 
       if (!res.ok) {
         const errorData = await res.json()
-        throw new Error(errorData.message || 'Failed to create game')
+        throw new Error(errorData.error || errorData.message || 'Failed to create game')
       }
 
       const game = await res.json()
-      if (!game?.id) {
-        throw new Error('Invalid game data received')
-      }
-
-      setShowNewGameModal(false)
-      await router.push(`/game/${game.id}`)
-    } catch (err) {
-      const error = err as Error
+      router.push(`/game/${game.id}`)
+    } catch (error) {
       console.error('Error creating game:', error)
-      alert(error.message || 'Failed to create game')
+      // Show error to user
+      toast.error(error instanceof Error ? error.message : 'Failed to create game')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -99,6 +109,18 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 p-4">
+      <Toaster 
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#1e293b',
+            color: '#e2e8f0',
+            border: '1px solid #334155'
+          }
+        }}
+      />
+      
       <div className="max-w-4xl mx-auto">
         <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl p-6 shadow-lg mb-8">
           <div className="flex justify-between items-center mb-4">

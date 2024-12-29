@@ -30,11 +30,16 @@ model Game {
   winner        String?
   endReason     String?
   turnStartedAt DateTime?
-  currentClue    String?   // The current word clue
-  currentNumber  Int?      // The number associated with the clue
-  clueGiver     String?   // ID of the player who gave the clue
+  currentClue   String?
+  currentNumber Int?
+  clueGiver     String?
+  redSpymasterModel    String?
+  blueSpymasterModel   String?
+  redOperativeModel    String?
+  blueOperativeModel   String?
   players       GamePlayer[]
   moves         Move[]
+  hints         Hint[]
 
   @@map("games")
 }
@@ -63,4 +68,16 @@ model Move {
   game      Game     @relation(fields: [gameId], references: [id])
 
   @@map("moves")
+}
+
+model Hint {
+  id        String   @id @default(cuid())
+  gameId    String
+  team      String
+  word      String
+  number    Int
+  timestamp DateTime @default(now())
+  game      Game     @relation(fields: [gameId], references: [id])
+
+  @@map("hints")
 }
