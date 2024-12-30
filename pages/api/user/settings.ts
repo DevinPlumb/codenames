@@ -85,8 +85,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           saved: true,
           message: 'Settings updated successfully',
           validationResults,
-          openaiApiKey: !!user.openaiApiKey,
-          anthropicKey: !!user.anthropicKey
+          openaiApiKey: !!openaiApiKey,
+          anthropicKey: !!anthropicKey
         })
       } else {
         return res.status(400).json({
@@ -107,8 +107,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       return res.status(200).json({
-        openaiApiKey: user?.openaiApiKey || '',
-        anthropicKey: user?.anthropicKey || ''
+        openaiApiKey: !!user?.openaiApiKey,
+        anthropicKey: !!user?.anthropicKey
       })
     }
 

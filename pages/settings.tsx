@@ -5,7 +5,6 @@ import AuthDebug from '../components/AuthDebug'
 import { useRouter } from 'next/router'
 import type { APIError } from '@/types/api'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import { toast } from 'react-hot-toast'
 
 interface ValidationResult {
   valid: boolean
@@ -33,7 +32,11 @@ export default function Settings() {
     anthropic: false
   })
   const [pageLoading, setPageLoading] = useState(true)
-  const [apiStatus, setApiStatus] = useState({
+  const [savedStatus, setSavedStatus] = useState({
+    openai: false,
+    anthropic: false
+  })
+  const [isEditing, setIsEditing] = useState({
     openai: false,
     anthropic: false
   })
@@ -48,11 +51,11 @@ export default function Settings() {
     try {
       const res = await fetch('/api/user/settings')
       const data = await res.json()
-      setOpenaiKey(data.openaiApiKey || '')
-      setAnthropicKey(data.anthropicKey || '')
-      setApiStatus({
-        openai: !!data.openaiApiKey,
-        anthropic: !!data.anthropicKey
+      setOpenaiKey(data.openaiApiKey ? '•'.repeat(51) : '')
+      setAnthropicKey(data.anthropicKey ? '•'.repeat(64) : '')
+      setIsEditing({
+        openai: false,
+        anthropic: false
       })
     } catch (err) {
       const error = err as APIError
@@ -62,18 +65,38 @@ export default function Settings() {
     }
   }
 
+  const handleKeyChange = (key: 'openai' | 'anthropic', value: string) => {
+    if (key === 'openai') {
+      setOpenaiKey(value)
+    } else {
+      setAnthropicKey(value)
+    }
+    // If the value is different from dots, mark as editing
+    setIsEditing(prev => ({
+      ...prev,
+      [key]: !value.match(/^[•]*$/)
+    }))
+    // Always clear saved status when editing
+    setSavedStatus(prev => ({
+      ...prev,
+      [key]: false
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setValidationErrors({ openai: false, anthropic: false })
+    // Clear saved status when submitting
+    setSavedStatus({ openai: false, anthropic: false })
 
     try {
       const res = await fetch('/api/user/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          openaiApiKey: openaiKey || null,
-          anthropicKey: anthropicKey || null
+          openaiApiKey: openaiKey.includes('•') ? null : openaiKey || null,
+          anthropicKey: anthropicKey.includes('•') ? null : anthropicKey || null
         })
       })
 
@@ -84,21 +107,28 @@ export default function Settings() {
           openai: data.validationResults?.openai?.valid === false,
           anthropic: data.validationResults?.anthropic?.valid === false
         })
-        toast.error(data.message || 'Failed to update settings')
         return
       }
 
       if (data.saved) {
-        toast.success('Settings updated successfully')
-        // Update API status
-        setApiStatus({
-          openai: data.openaiApiKey,
-          anthropic: data.anthropicKey
+        // Only set savedStatus to true for keys that were actually updated
+        setSavedStatus({
+          openai: !openaiKey.includes('•') && !!openaiKey,
+          anthropic: !anthropicKey.includes('•') && !!anthropicKey
         })
+        setIsEditing({
+          openai: false,
+          anthropic: false
+        })
+        if (openaiKey && !openaiKey.includes('•')) {
+          setOpenaiKey('•'.repeat(openaiKey.length))
+        }
+        if (anthropicKey && !anthropicKey.includes('•')) {
+          setAnthropicKey('•'.repeat(anthropicKey.length))
+        }
       }
     } catch (error) {
       console.error('Error updating settings:', error)
-      toast.error('Failed to update settings')
     } finally {
       setLoading(false)
     }
@@ -140,16 +170,26 @@ export default function Settings() {
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="font-mono text-sm text-slate-400">OpenAI API Key</label>
-              {validationErrors.openai && (
-                <p className="text-xs text-red-400 font-mono">
-                  Invalid API key
-                </p>
-              )}
+              <div className="flex items-center gap-2">
+                {savedStatus.openai && !isEditing.openai && openaiKey && (
+                  <span className="text-xs text-emerald-400 font-mono flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Saved
+                  </span>
+                )}
+                {validationErrors.openai && (
+                  <p className="text-xs text-red-400 font-mono">
+                    Invalid API key
+                  </p>
+                )}
+              </div>
             </div>
             <input
               type="password"
               value={openaiKey}
-              onChange={(e) => setOpenaiKey(e.target.value)}
+              onChange={(e) => handleKeyChange('openai', e.target.value)}
               className={`w-full p-3 bg-slate-800/50 border rounded-xl font-mono text-sm 
                        focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50
                        ${validationErrors.openai ? 'border-red-500/50' : 'border-slate-700'}`}
@@ -159,16 +199,26 @@ export default function Settings() {
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="font-mono text-sm text-slate-400">Anthropic API Key</label>
-              {validationErrors.anthropic && (
-                <p className="text-xs text-red-400 font-mono">
-                  Invalid API key
-                </p>
-              )}
+              <div className="flex items-center gap-2">
+                {savedStatus.anthropic && !isEditing.anthropic && anthropicKey && (
+                  <span className="text-xs text-emerald-400 font-mono flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Saved
+                  </span>
+                )}
+                {validationErrors.anthropic && (
+                  <p className="text-xs text-red-400 font-mono">
+                    Invalid API key
+                  </p>
+                )}
+              </div>
             </div>
             <input
               type="password"
               value={anthropicKey}
-              onChange={(e) => setAnthropicKey(e.target.value)}
+              onChange={(e) => handleKeyChange('anthropic', e.target.value)}
               className={`w-full p-3 bg-slate-800/50 border rounded-xl font-mono text-sm 
                        focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50
                        ${validationErrors.anthropic ? 'border-red-500/50' : 'border-slate-700'}`}
