@@ -97,12 +97,46 @@ export default function Home() {
 
   if (!session) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center">
-        <div className="w-full max-w-[400px] p-4">
+      <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800">
+        <div className="w-full max-w-[400px] p-6 bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl shadow-lg">
+          <h1 className="text-2xl font-mono font-bold text-slate-200 mb-6 text-center">
+            Welcome to Codenames
+          </h1>
           <Auth
             supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
-            providers={['github']}
+            appearance={{
+              theme: ThemeSupa,
+              variables: {
+                default: {
+                  colors: {
+                    brand: '#10b981', // emerald-500
+                    brandAccent: '#059669', // emerald-600
+                    inputBackground: 'rgb(30 41 59 / 0.5)', // slate-800/50
+                    inputBorder: 'rgb(51 65 85)', // slate-700
+                    inputText: '#e2e8f0', // slate-200
+                  },
+                },
+              },
+              className: {
+                container: 'font-mono',
+                button: '!bg-emerald-500/80 hover:!bg-emerald-600/80 !transition-all !duration-200 !font-mono',
+                input: `!bg-slate-800/50 !border-slate-700 !font-mono !text-slate-200
+                  [-webkit-appearance:none]
+                  [-webkit-box-shadow:0_0_0_30px_rgba(15_23_42_/_1)_inset_!important]
+                  [-webkit-text-fill-color:rgb(226_232_240)_!important]
+                  [&:-webkit-autofill]:[background-color:rgba(15_23_42_/_1)_!important]
+                  [&:-webkit-autofill]:[color:rgb(226_232_240)_!important]
+                  [&:-webkit-autofill]:!font-mono
+                  [&:-webkit-autofill]:!font-[ui-monospace]
+                  [&:-webkit-autofill_-internal-autofill-selected]:!font-mono`,
+                label: '!font-mono !text-slate-400',
+                anchor: '!font-mono !text-emerald-500 hover:!text-emerald-400',
+                message: '!font-mono !text-slate-400',
+                divider: '!font-mono !text-slate-400'
+              },
+            }}
+            providers={[]}
+            magicLink={true}
           />
         </div>
       </div>
