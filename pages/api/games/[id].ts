@@ -201,7 +201,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                       word: card.word, 
                       index 
                     }))
-                    .filter(card => !gameState.cards[card.index].revealed),
+                    .filter((card: { word: string, index: number }) => !gameState.cards[card.index].revealed),
                   guessesThisTurn: game.moves.filter(m => 
                     m.teamTurn === currentTeam && 
                     m.createdAt > game.turnStartedAt!
