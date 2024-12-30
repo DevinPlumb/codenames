@@ -1,9 +1,9 @@
+import { Auth } from '@supabase/auth-ui-react'
+import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { toast, Toaster } from 'react-hot-toast'
-import AuthComponent from '../components/Auth'
-import { initializeGameBoard } from '../utils/game'
 import { GameSummary, Player } from '../types/game'
 import NewGameModal from '../components/NewGameModal'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -95,7 +95,20 @@ export default function Home() {
     }
   }
 
-  if (!session) return <AuthComponent />
+  if (!session) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center">
+        <div className="w-full max-w-[400px] p-4">
+          <Auth
+            supabaseClient={supabase}
+            appearance={{ theme: ThemeSupa }}
+            providers={['github']}
+          />
+        </div>
+      </div>
+    )
+  }
+
   if (loading) return <LoadingSpinner />
 
   const stats = games.reduce((acc, game) => {
