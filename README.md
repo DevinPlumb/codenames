@@ -61,7 +61,9 @@ The Spymaster gives a one-word clue followed by a number, indicating how many ca
 3. **Environment Setup**
    Create a `.env` file in the root directory:
    ```env
-   DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres"
+   # Using Session Pooler (port 5432) for optimal IPv4 compatibility and Prisma support
+   # This provides a good balance between connection management and feature support
+   DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-us-west-1.pooler.supabase.com:5432/postgres"
    NEXT_PUBLIC_SUPABASE_URL="https://[PROJECT-REF].supabase.co"
    NEXT_PUBLIC_SUPABASE_ANON_KEY="[ANON-KEY]"
    ```
