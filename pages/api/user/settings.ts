@@ -108,7 +108,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({
         openaiApiKey: !!user?.openaiApiKey,
-        anthropicKey: !!user?.anthropicKey
+        anthropicKey: !!user?.anthropicKey,
+        openaiApiKeyLength: user?.openaiApiKey?.length || 0,
+        anthropicKeyLength: user?.anthropicKey?.length || 0
       })
     }
 

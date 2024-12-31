@@ -57,8 +57,8 @@ export default function Settings() {
         }
       })
       const data = await res.json()
-      setOpenaiKey(data.openaiApiKey ? '•'.repeat(51) : '')
-      setAnthropicKey(data.anthropicKey ? '•'.repeat(64) : '')
+      setOpenaiKey(data.openaiApiKeyLength ? '•'.repeat(data.openaiApiKeyLength) : '')
+      setAnthropicKey(data.anthropicKeyLength ? '•'.repeat(data.anthropicKeyLength) : '')
       setIsEditing({
         openai: false,
         anthropic: false
@@ -75,10 +75,11 @@ export default function Settings() {
     } else {
       setAnthropicKey(value)
     }
-    // If the value is different from dots, mark as editing
+    // Mark as editing if the value is different from the current dots
+    const currentValue = key === 'openai' ? openaiKey : anthropicKey
     setIsEditing(prev => ({
       ...prev,
-      [key]: !value.match(/^[•]*$/)
+      [key]: value !== currentValue
     }))
     // Always clear saved status when editing
     setSavedStatus(prev => ({
@@ -95,16 +96,22 @@ export default function Settings() {
     setSavedStatus({ openai: false, anthropic: false })
 
     try {
+      // Only include keys in the request that have been edited
+      const updates: { openaiApiKey?: string | null, anthropicKey?: string | null } = {}
+      if (isEditing.openai) {
+        updates.openaiApiKey = openaiKey || null
+      }
+      if (isEditing.anthropic) {
+        updates.anthropicKey = anthropicKey || null
+      }
+
       const res = await fetch('/api/user/settings', {
-        method: 'POST',
+        method: 'PATCH',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          openaiApiKey: openaiKey.includes('•') ? null : openaiKey || null,
-          anthropicKey: anthropicKey.includes('•') ? null : anthropicKey || null
-        })
+        body: JSON.stringify(updates)
       })
 
       const data = await res.json()
@@ -120,17 +127,17 @@ export default function Settings() {
       if (data.saved) {
         // Only set savedStatus to true for keys that were actually updated
         setSavedStatus({
-          openai: !openaiKey.includes('•') && !!openaiKey,
-          anthropic: !anthropicKey.includes('•') && !!anthropicKey
+          openai: isEditing.openai && !!openaiKey,
+          anthropic: isEditing.anthropic && !!anthropicKey
         })
         setIsEditing({
           openai: false,
           anthropic: false
         })
-        if (openaiKey && !openaiKey.includes('•')) {
+        if (isEditing.openai && openaiKey) {
           setOpenaiKey('•'.repeat(openaiKey.length))
         }
-        if (anthropicKey && !anthropicKey.includes('•')) {
+        if (isEditing.anthropic && anthropicKey) {
           setAnthropicKey('•'.repeat(anthropicKey.length))
         }
       }
@@ -234,7 +241,7 @@ export default function Settings() {
 
           <button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || (!isEditing.openai && !isEditing.anthropic)}
             className="w-full px-4 py-3 bg-emerald-500/80 text-white rounded-xl font-mono 
                      hover:bg-emerald-600/80 transition-all duration-200 hover:scale-[1.02] 
                      disabled:opacity-50 disabled:hover:scale-100 shadow-lg mt-8"
