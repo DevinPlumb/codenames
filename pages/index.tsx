@@ -169,13 +169,13 @@ export default function Home() {
       />
       
       <div className="max-w-4xl mx-auto">
-        <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl p-6 shadow-lg mb-8">
-          <div className="flex justify-between items-center mb-4">
+        <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl p-4 sm:p-6 shadow-lg mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div>
               <h1 className="text-2xl font-mono font-bold text-slate-200">
                 Welcome, {session.user.email}
               </h1>
-              <div className="flex gap-4 mt-2">
+              <div className="flex flex-wrap gap-4 mt-2">
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${
                     apiStatus.openai 
@@ -198,18 +198,18 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
               <button
                 onClick={() => router.push('/settings')}
-                className="px-4 py-2 bg-slate-800/80 text-slate-300 rounded-xl font-mono border border-slate-700 
-                         hover:bg-slate-700/80 transition-all duration-200 hover:scale-[1.02] shadow-lg"
+                className="w-full sm:w-auto px-4 py-2 bg-slate-800/80 text-slate-300 rounded-xl font-mono border border-slate-700 
+                         hover:bg-slate-700/80 transition-all duration-200 hover:scale-[1.02] shadow-lg whitespace-nowrap"
               >
                 Settings
               </button>
               <button
                 onClick={() => supabase.auth.signOut()}
-                className="px-4 py-2 bg-slate-800/80 text-slate-300 rounded-xl font-mono border border-slate-700 
-                         hover:bg-slate-700/80 transition-all duration-200 hover:scale-[1.02] shadow-lg"
+                className="w-full sm:w-auto px-4 py-2 bg-slate-800/80 text-slate-300 rounded-xl font-mono border border-slate-700 
+                         hover:bg-slate-700/80 transition-all duration-200 hover:scale-[1.02] shadow-lg whitespace-nowrap"
               >
                 Sign Out
               </button>
@@ -244,63 +244,78 @@ export default function Home() {
           )}
         </div>
 
-        <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl p-6 shadow-lg mb-8">
+        <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl p-4 sm:p-6 shadow-lg mb-8">
           <h2 className="text-xl font-mono font-bold text-slate-200 mb-4">Ongoing Games</h2>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {games
               .filter(game => !game.completedAt)
-              .map(game => (
-                <div
-                  key={game.id}
-                  onClick={() => hasApiKey && router.push(`/game/${game.id}`)}
-                  className={`bg-slate-800/50 p-4 rounded-lg ${
-                    hasApiKey 
-                      ? 'cursor-pointer hover:bg-slate-800/70 transition-all' 
-                      : 'opacity-50 cursor-not-allowed'
-                  }`}
-                >
-                  <div className="flex justify-between items-center font-mono">
-                    <span className="text-slate-400">
-                      Started {new Date(game.createdAt).toLocaleDateString()}
-                    </span>
-                    <span className={game.players.find((p: Player) => 
-                      p.userId === session.user.id)?.team === 'red' ? 
-                      'text-red-400' : 'text-blue-400'}>
-                      Playing as {game.players.find((p: Player) => 
-                        p.userId === session.user.id)?.team.toUpperCase()}
-                    </span>
+              .map(game => {
+                const playerTeam = game.players.find((p: Player) => p.userId === session.user.id)?.team
+                return (
+                  <div
+                    key={game.id}
+                    onClick={() => hasApiKey && router.push(`/game/${game.id}`)}
+                    className={`bg-slate-800/50 p-4 rounded-lg ${
+                      hasApiKey 
+                        ? 'cursor-pointer hover:bg-slate-800/70 transition-all' 
+                        : 'opacity-50 cursor-not-allowed'
+                    } border-2 ${playerTeam === 'red' ? 'border-red-500/20' : 'border-blue-500/20'}`}
+                  >
+                    <div className="flex justify-between items-center font-mono">
+                      <span className={`text-sm ${playerTeam === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
+                        {new Date(game.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             {games.filter(game => !game.completedAt).length === 0 && (
               <p className="text-slate-400 font-mono text-sm">No ongoing games</p>
             )}
           </div>
         </div>
 
-        <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl p-6 shadow-lg">
+        <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl p-4 sm:p-6 shadow-lg">
           <h2 className="text-xl font-mono font-bold text-slate-200 mb-4">Completed Games</h2>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {games
               .filter(game => game.completedAt)
-              .map(game => (
-                <div
-                  key={game.id}
-                  onClick={() => router.push(`/game/${game.id}`)}
-                  className="bg-slate-800/50 p-4 rounded-lg cursor-pointer hover:bg-slate-800/70 transition-all"
-                >
-                  <div className="flex justify-between items-center font-mono">
-                    <span className="text-slate-400">
-                      {new Date(game.createdAt).toLocaleDateString()}
-                    </span>
-                    {game.winner && (
-                      <span className={game.winner === 'red' ? 'text-red-400' : 'text-blue-400'}>
-                        {game.winner.toUpperCase()} Won
+              .map(game => {
+                const playerTeam = game.players.find((p: Player) => p.userId === session.user.id)?.team
+                const didWin = game.winner === playerTeam
+                return (
+                  <div
+                    key={game.id}
+                    onClick={() => router.push(`/game/${game.id}`)}
+                    className={`bg-slate-800/50 p-4 rounded-lg cursor-pointer hover:bg-slate-800/70 transition-all
+                              border-2 ${didWin ? 'border-emerald-500/20' : 'border-red-500/20'}`}
+                  >
+                    <div className="flex justify-between items-center font-mono">
+                      <span className="text-sm text-slate-400">
+                        {new Date(game.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit'
+                        })}
                       </span>
-                    )}
+                      {game.winner && (
+                        <span className={`text-sm ${game.winner === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
+                          {game.winner.toUpperCase()} Won
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
+            {games.filter(game => game.completedAt).length === 0 && (
+              <p className="text-slate-400 font-mono text-sm">No completed games</p>
+            )}
           </div>
         </div>
 

@@ -147,7 +147,7 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 p-4">
       <div className="max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/')}
@@ -160,7 +160,7 @@ export default function Settings() {
           </div>
           <button
             onClick={handleSignOut}
-            className="px-4 py-2 bg-slate-800/80 text-slate-300 rounded-xl font-mono border border-slate-700 
+            className="w-full sm:w-auto px-4 py-2 bg-slate-800/80 text-slate-300 rounded-xl font-mono border border-slate-700 
                      hover:bg-slate-700/80 transition-all duration-200 hover:scale-[1.02] shadow-lg"
           >
             Sign Out
