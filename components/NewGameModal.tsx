@@ -32,7 +32,12 @@ export default function NewGameModal({ onClose, onCreateGame }: NewGameModalProp
 
   const loadModels = async () => {
     try {
-      const res = await fetch('/api/models')
+      const res = await fetch('/api/models', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       const data = await res.json()
       setModels(data)
       // Set default models

@@ -211,6 +211,7 @@ export default function GamePage() {
       if (!currentPlayer?.userId) {
         fetch(`/api/games/${id}`, {
           method: 'PATCH',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             currentTeam: game.currentTeam,
@@ -225,7 +226,12 @@ export default function GamePage() {
 
   const loadGame = async () => {
     try {
-      const res = await fetch(`/api/games/${id}`)
+      const res = await fetch(`/api/games/${id}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       if (!res.ok) throw new Error('Failed to load game')
       const data = await res.json()
       if (!data) throw new Error('Game not found')
@@ -266,6 +272,7 @@ export default function GamePage() {
 
       const res = await fetch(`/api/games/${id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentTeam: shouldEndTurn ? (game.currentTeam === 'red' ? 'blue' : 'red') : game.currentTeam,
@@ -296,14 +303,13 @@ export default function GamePage() {
       }
 
       const res = await fetch(`/api/games/${id}`, {
-        method: 'PATCH',
+        method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          currentTeam: game.currentTeam,
-          gameState: game.gameState,
-          currentClue: clueWord,
-          currentNumber: clueNumber,
-          hint: hint  // Pass the hint to be saved
+          action: 'hint',
+          word: clueWord,
+          number: clueNumber
         })
       })
 
@@ -323,13 +329,11 @@ export default function GamePage() {
 
     try {
       const res = await fetch(`/api/games/${id}`, {
-        method: 'PATCH',
+        method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          currentTeam: game.currentTeam === 'red' ? 'blue' : 'red',
-          gameState: game.gameState,
-          currentClue: null,
-          currentNumber: null
+          action: 'endTurn'
         })
       })
       const updatedGame = await res.json()

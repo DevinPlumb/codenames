@@ -29,11 +29,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const supabase = createPagesServerClient({ req, res })
     
-    const { data: { session }, error } = await supabase.auth.getSession()
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
     
-    if (error) throw error
+    if (authError) {
+      console.error('Auth error:', authError)
+      return res.status(401).json({ 
+        error: 'Authentication error',
+        details: process.env.NODE_ENV === 'development' ? authError : undefined
+      })
+    }
+
     if (!session?.user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' })
+      console.error('No session found')
+      return res.status(401).json({ 
+        error: 'Unauthorized',
+        message: 'No valid session found'
+      })
     }
 
     if (req.method === 'POST') {
@@ -156,7 +167,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ error: 'Method not allowed' })
   } catch (error) {
-    console.error('Auth error:', error)
-    return res.status(500).json({ error: 'Authentication error' })
+    console.error('Server error:', error)
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    })
   }
 } 

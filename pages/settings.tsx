@@ -49,7 +49,12 @@ export default function Settings() {
 
   const loadSettings = async () => {
     try {
-      const res = await fetch('/api/user/settings')
+      const res = await fetch('/api/user/settings', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       const data = await res.json()
       setOpenaiKey(data.openaiApiKey ? '•'.repeat(51) : '')
       setAnthropicKey(data.anthropicKey ? '•'.repeat(64) : '')
@@ -92,8 +97,11 @@ export default function Settings() {
 
     try {
       const res = await fetch('/api/user/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           openaiApiKey: openaiKey.includes('•') ? null : openaiKey || null,
           anthropicKey: anthropicKey.includes('•') ? null : anthropicKey || null

@@ -31,11 +31,29 @@ export default function Home() {
 
   const loadGames = async () => {
     try {
-      const res = await fetch('/api/games')
+      const res = await fetch('/api/games', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!res.ok) {
+        const errorData = await res.json()
+        if (res.status === 401) {
+          const { error: refreshError } = await supabase.auth.getSession()
+          if (!refreshError) {
+            return loadGames()
+          }
+        }
+        throw new Error(errorData.message || 'Failed to load games')
+      }
+
       const data = await res.json()
       setGames(data)
     } catch (error) {
       console.error('Error loading games:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to load games')
     } finally {
       setLoading(false)
     }
@@ -69,6 +87,7 @@ export default function Home() {
       setLoading(true)
       const res = await fetch('/api/games', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
