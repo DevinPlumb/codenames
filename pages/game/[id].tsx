@@ -116,8 +116,7 @@ function DebugPanel({ moves, gameState, hints }: {
     timestamp: string
   }>
 }) {
-  console.log('Debug Panel Hints:', hints)
-  console.log('Debug Panel Moves:', moves)
+  const [isCollapsed, setIsCollapsed] = useState(true)
 
   // Combine and sort all events chronologically
   const events = [
@@ -133,42 +132,64 @@ function DebugPanel({ moves, gameState, hints }: {
     }))
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
-  console.log('Combined Events:', events)
-
   return (
-    <div className="fixed top-4 right-4 w-96 bg-black/90 text-green-400 p-4 rounded-xl 
-                    font-mono text-sm overflow-auto max-h-[90vh] border border-green-500/50
-                    z-50 shadow-xl backdrop-blur-sm">
-      <h3 className="text-lg mb-2 border-b border-green-500/50 pb-2">Game Log</h3>
-      <div className="space-y-4">
-        {events.slice(0, 15).map((event, i) => (
-          <div key={i} className="border-b border-green-500/20 pb-2">
-            {event.type === 'move' ? (
-              <>
-                <div className={`font-bold ${event.data.teamTurn === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
-                  {event.data.teamTurn.toUpperCase()} Team Guess
-                </div>
-                <div>Player: {event.data.playerId.startsWith('AI-') ? 'AI' : 'Human'}</div>
-                <div>Word: {gameState.cards[event.data.cardIndex].word}</div>
-                <div className={event.data.cardType === event.data.teamTurn ? 'text-emerald-400' : 'text-red-400'}>
-                  Result: {event.data.cardType === event.data.teamTurn ? 'Correct!' : 'Wrong!'}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className={`font-bold ${event.data.team === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
-                  {event.data.team.toUpperCase()} Team Spymaster Hint
-                </div>
-                <div className="text-emerald-400">
-                  Clue: "{event.data.word}" for {event.data.number} words
-                </div>
-              </>
-            )}
-            <div className="text-xs text-green-600 mt-1">
-              {new Date(event.timestamp).toLocaleTimeString()}
+    <div className={`fixed md:top-4 md:right-4 ${
+      isCollapsed 
+        ? 'bottom-4 right-4 w-auto md:w-48 h-[60px]'
+        : 'bottom-0 right-0 w-full md:w-96 md:max-w-[90vw]'
+    } bg-black/90 text-green-400 rounded-xl 
+      font-mono text-sm border border-green-500/50
+      z-50 shadow-xl backdrop-blur-sm transition-all duration-300`}
+    >
+      <div 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className={`flex items-center justify-between p-4 h-[60px] cursor-pointer hover:bg-green-500/10 transition-colors rounded-xl
+          ${!isCollapsed && 'border-b border-green-500/50 rounded-b-none'}`}
+      >
+        <h3 className="text-lg">Game Log</h3>
+        <div className="p-2 rounded-lg">
+          {isCollapsed ? (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+          )}
+        </div>
+      </div>
+      <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'h-0' : 'h-[60vh] md:h-[calc(90vh-4rem)]'}`}>
+        <div className="p-4 space-y-4 overflow-auto h-full">
+          {events.slice(0, 15).map((event, i) => (
+            <div key={i} className="border-b border-green-500/20 pb-2">
+              {event.type === 'move' ? (
+                <>
+                  <div className={`font-bold ${event.data.teamTurn === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
+                    {event.data.teamTurn.toUpperCase()} Team Guess
+                  </div>
+                  <div>Player: {event.data.playerId.startsWith('AI-') ? 'AI' : 'Human'}</div>
+                  <div>Word: {gameState.cards[event.data.cardIndex].word}</div>
+                  <div className={event.data.cardType === event.data.teamTurn ? 'text-emerald-400' : 'text-red-400'}>
+                    Result: {event.data.cardType === event.data.teamTurn ? 'Correct!' : 'Wrong!'}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={`font-bold ${event.data.team === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
+                    {event.data.team.toUpperCase()} Team Spymaster Hint
+                  </div>
+                  <div className="text-emerald-400">
+                    Clue: "{event.data.word}" for {event.data.number} words
+                  </div>
+                </>
+              )}
+              <div className="text-xs text-green-600 mt-1">
+                {new Date(event.timestamp).toLocaleTimeString()}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -410,7 +431,7 @@ export default function GamePage() {
           </div>
           
           {isSpymaster && isCurrentTeamsTurn && !game.winner && !game.currentClue && (
-            <div className="flex gap-6 justify-center items-center bg-slate-800/50 p-6 rounded-xl border border-slate-700">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-stretch bg-slate-800/50 p-4 sm:p-6 rounded-xl border border-slate-700">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-mono text-slate-400">Clue Word</label>
                 <input
@@ -418,7 +439,7 @@ export default function GamePage() {
                   value={clueWord}
                   onChange={(e) => setClueWord(e.target.value)}
                   placeholder="Enter a one-word clue"
-                  className="p-3 w-64 rounded-xl bg-slate-900/50 border border-slate-600 text-slate-200 font-mono
+                  className="p-3 w-full sm:w-64 rounded-xl bg-slate-900/50 border border-slate-600 text-slate-200 font-mono
                            focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50"
                 />
               </div>
@@ -430,16 +451,16 @@ export default function GamePage() {
                   onChange={(e) => setClueNumber(parseInt(e.target.value))}
                   min="1"
                   max="9"
-                  className="p-3 w-28 rounded-xl bg-slate-900/50 border border-slate-600 text-slate-200 font-mono
+                  className="p-3 w-full sm:w-28 rounded-xl bg-slate-900/50 border border-slate-600 text-slate-200 font-mono
                            focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50"
                 />
               </div>
               <button
                 onClick={handleGiveClue}
                 disabled={!clueWord || !clueNumber}
-                className="px-6 py-3 bg-emerald-500/80 text-white rounded-xl font-mono mt-auto
+                className="px-6 py-3 bg-emerald-500/80 text-white rounded-xl font-mono
                          hover:bg-emerald-600/80 transition-all duration-200 hover:scale-[1.02]
-                         disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
+                         disabled:opacity-50 disabled:hover:scale-100 shadow-lg sm:self-end"
               >
                 Give Clue
               </button>
@@ -460,7 +481,7 @@ export default function GamePage() {
         </div>
 
         {/* Game board */}
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-4">
           {game.gameState.cards.map((card, index) => (
             <button
               key={index}
@@ -472,7 +493,7 @@ export default function GamePage() {
                 isSpymaster ||  // Spymasters can't click
                 (!isSpymaster && !game.currentClue)  // Operatives need a clue to click
               }
-              className={`aspect-[3/2] p-4 font-mono text-center transition-all duration-300 
+              className={`aspect-[3/2] p-2 md:p-4 font-mono text-center transition-all duration-300 
                          border-2 shadow-lg rounded-xl hover:scale-[1.02] disabled:hover:scale-100 
                          transform ${card.revealed ? 'animate-reveal' : ''} ${
                 card.revealed || isSpymaster
@@ -486,7 +507,7 @@ export default function GamePage() {
                   : 'bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 border-slate-700 backdrop-blur-sm'
               }`}
             >
-              <span className="text-sm">{card.word}</span>
+              <span className="text-xs sm:text-sm">{card.word}</span>
             </button>
           ))}
         </div>
