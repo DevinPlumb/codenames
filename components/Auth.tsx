@@ -30,23 +30,25 @@ export default function AuthComponent() {
                 inputBorderRadius: '0.75rem',
               },
               fonts: {
-                bodyFontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                buttonFontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                inputFontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                bodyFontFamily: 'Chakra Petch, sans-serif',
+                buttonFontFamily: 'Chakra Petch, sans-serif',
+                inputFontFamily: 'Chakra Petch, sans-serif',
+                labelFontFamily: 'Chakra Petch, sans-serif',
               },
             },
           },
           className: {
-            container: 'font-mono',
-            label: 'text-slate-400',
-            button: 'font-mono shadow-lg hover:scale-[1.02] transition-transform duration-200',
-            input: 'bg-slate-800/50 border-slate-700 font-mono',
+            container: 'font-sans tracking-wide',
+            label: 'text-slate-400 font-medium',
+            button: 'shadow-lg hover:scale-[1.02] transition-transform duration-200 font-medium',
+            input: 'bg-slate-800/50 border-slate-700 font-medium',
+            anchor: 'text-emerald-500 hover:text-emerald-400 font-medium',
+            message: 'text-slate-400 font-medium',
+            divider: 'text-slate-400'
           }
         }}
-        theme="dark"
         providers={[]}
-        magicLink={false}
-        redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
+        magicLink={true}
       />
     </div>
   )

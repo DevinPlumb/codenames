@@ -9,6 +9,10 @@ module.exports = {
   ],
   prefix: "",
   theme: {
+    fontFamily: {
+      sans: ['Chakra Petch', 'sans-serif'],
+      mono: ['Chakra Petch', 'sans-serif'],
+    },
     container: {
       center: true,
       padding: "2rem",
