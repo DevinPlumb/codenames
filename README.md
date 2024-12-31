@@ -18,7 +18,17 @@ The Spymaster gives a one-word clue followed by a number, indicating how many ca
 
 ## Game State Machine
 
-The game follows a finite state machine (FSM) pattern with six possible states and various transitions between them. The diagram below illustrates the game flow:
+The game follows an extended finite state machine (EFSM) pattern with six possible states and various transitions between them. I chose to augment a basic FSM with external variables to create a more concise representation of what would otherwise require an exponentially larger pure FSM. In our case, if we were to model this as a pure FSM, we would need separate states for every possible combination of:
+- Game board configurations
+- Remaining guesses counts
+- Timer values
+
+Instead, we maintain these as external variables:
+- Game board state (words, colors, and revealed status of each card)
+- Number of remaining guesses in operative turns
+- Turn timer status
+
+The diagram below shows the core state transitions of our EFSM, while the notes indicate the external variables being tracked:
 
 ```mermaid
 stateDiagram
@@ -50,7 +60,7 @@ stateDiagram
     BO --> BO: correct guess (decrement guesses)
 ```
 
-The game alternates between Spymaster and Operative turns for each team. State transitions are listed in descending order of precedence. Operative states track specific information, like the number of remaining related words and the hidden/revealed card statuses. After each operative state, the revealed card statuses are updated.
+The game alternates between Spymaster and Operative turns for each team. State transitions are listed in descending order of precedence. While the FSM captures the turn flow and win conditions, the complete game state requires tracking the external state information listed above. After each operative state, the revealed card statuses and remaining guess counter are updated independently of the state machine.
 
 ## Technologies Used
 
