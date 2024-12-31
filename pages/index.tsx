@@ -53,7 +53,6 @@ export default function Home() {
       setGames(data)
     } catch (error) {
       console.error('Error loading games:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to load games')
     } finally {
       setLoading(false)
     }
@@ -107,8 +106,6 @@ export default function Home() {
       router.push(`/game/${game.id}`)
     } catch (error) {
       console.error('Error creating game:', error)
-      // Show error to user
-      toast.error(error instanceof Error ? error.message : 'Failed to create game')
     } finally {
       setLoading(false)
     }
