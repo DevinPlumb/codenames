@@ -52,7 +52,7 @@ export default function Home() {
       const data = await res.json()
       setGames(data)
     } catch (error) {
-      console.error('Error loading games:', error)
+      // Silently handle game loading errors
     } finally {
       setLoading(false)
     }
@@ -68,7 +68,7 @@ export default function Home() {
       })
       setHasApiKey(!!(data.openaiApiKey || data.anthropicKey))
     } catch (error) {
-      console.error('Error loading settings:', error)
+      // Silently handle settings loading errors
     }
   }
 
@@ -105,7 +105,7 @@ export default function Home() {
       const game = await res.json()
       router.push(`/game/${game.id}`)
     } catch (error) {
-      console.error('Error creating game:', error)
+      // Silently handle game creation errors
     } finally {
       setLoading(false)
     }

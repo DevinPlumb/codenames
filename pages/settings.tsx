@@ -5,6 +5,7 @@ import AuthDebug from '../components/AuthDebug'
 import { useRouter } from 'next/router'
 import type { APIError } from '@/types/api'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { toast } from 'react-hot-toast'
 
 interface ValidationResult {
   valid: boolean
@@ -49,24 +50,14 @@ export default function Settings() {
 
   const loadSettings = async () => {
     try {
-      const res = await fetch('/api/user/settings', {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
+      const res = await fetch('/api/user/settings')
       const data = await res.json()
-      setOpenaiKey(data.openaiApiKey ? '•'.repeat(51) : '')
-      setAnthropicKey(data.anthropicKey ? '•'.repeat(64) : '')
-      setIsEditing({
-        openai: false,
-        anthropic: false
-      })
-    } catch (err) {
-      const error = err as APIError
-      console.error('Error loading settings:', {
-        message: error.message
-      })
+      setOpenaiKey(data.openaiApiKey || '')
+      setAnthropicKey(data.anthropicKey || '')
+    } catch (error) {
+      // Silently handle settings loading errors
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -88,57 +79,29 @@ export default function Settings() {
     }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setValidationErrors({ openai: false, anthropic: false })
-    // Clear saved status when submitting
-    setSavedStatus({ openai: false, anthropic: false })
-
+  const handleSave = async () => {
     try {
       const res = await fetch('/api/user/settings', {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          openaiApiKey: openaiKey.includes('•') ? null : openaiKey || null,
-          anthropicKey: anthropicKey.includes('•') ? null : anthropicKey || null
+          openaiApiKey: openaiKey,
+          anthropicKey: anthropicKey
         })
       })
 
-      const data = await res.json()
-
       if (!res.ok) {
-        setValidationErrors({
-          openai: data.validationResults?.openai?.valid === false,
-          anthropic: data.validationResults?.anthropic?.valid === false
-        })
-        return
+        const data = await res.json()
+        throw new Error(data.message || 'Failed to update settings')
       }
 
-      if (data.saved) {
-        // Only set savedStatus to true for keys that were actually updated
-        setSavedStatus({
-          openai: !openaiKey.includes('•') && !!openaiKey,
-          anthropic: !anthropicKey.includes('•') && !!anthropicKey
-        })
-        setIsEditing({
-          openai: false,
-          anthropic: false
-        })
-        if (openaiKey && !openaiKey.includes('•')) {
-          setOpenaiKey('•'.repeat(openaiKey.length))
-        }
-        if (anthropicKey && !anthropicKey.includes('•')) {
-          setAnthropicKey('•'.repeat(anthropicKey.length))
-        }
-      }
+      toast.success('Settings saved successfully')
+      router.push('/')
     } catch (error) {
-      console.error('Error updating settings:', error)
-    } finally {
-      setLoading(false)
+      // Silently handle settings update errors
+      toast.error('Failed to save settings')
     }
   }
 
@@ -234,7 +197,7 @@ export default function Settings() {
           </div>
 
           <button
-            onClick={handleSubmit}
+            onClick={handleSave}
             disabled={loading}
             className="w-full px-4 py-3 bg-emerald-500/80 text-white rounded-xl font-mono 
                      hover:bg-emerald-600/80 transition-all duration-200 hover:scale-[1.02] 

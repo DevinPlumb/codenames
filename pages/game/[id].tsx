@@ -240,7 +240,7 @@ export default function GamePage() {
           })
         }).then(res => res.json())
           .then(updatedGame => setGame(updatedGame))
-          .catch(error => console.error('Error making AI move:', error))
+          .catch(() => {}) // Silently handle AI move errors
       }
     }
   }, [session, id, game?.currentTeam, game?.currentClue])
@@ -256,11 +256,8 @@ export default function GamePage() {
       if (!res.ok) throw new Error('Failed to load game')
       const data = await res.json()
       if (!data) throw new Error('Game not found')
-      console.log('Game data:', data)
-      console.log('Hints:', data.hints)
       setGame(data)
     } catch (error) {
-      console.error('Error loading game:', error)
       router.push('/')
     } finally {
       setLoading(false)
@@ -307,7 +304,7 @@ export default function GamePage() {
       const updatedGame = await res.json()
       setGame(updatedGame)
     } catch (error) {
-      console.error('Error clicking card:', error)
+      // Silently handle card click errors
     }
   }
 
@@ -338,12 +335,11 @@ export default function GamePage() {
 
       if (!res.ok) throw new Error('Failed to give clue')
       const updatedGame = await res.json()
-      console.log('Updated game after hint:', updatedGame)  // Debug log
       setGame(updatedGame)
       setClueWord('')
       setClueNumber(0)
     } catch (error) {
-      console.error('Error giving clue:', error)
+      // Silently handle clue errors
     }
   }
 
@@ -365,7 +361,7 @@ export default function GamePage() {
       const updatedGame = await res.json()
       setGame(updatedGame)
     } catch (error) {
-      console.error('Error ending turn:', error)
+      // Silently handle end turn errors
     }
   }
 

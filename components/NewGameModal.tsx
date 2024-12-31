@@ -50,7 +50,7 @@ export default function NewGameModal({ onClose, onCreateGame }: NewGameModalProp
         })
       }
     } catch (error) {
-      console.error('Error loading models:', error)
+      // Silently handle model loading errors
     }
   }
 
