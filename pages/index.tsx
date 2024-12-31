@@ -251,6 +251,7 @@ export default function Home() {
               .filter(game => !game.completedAt)
               .map(game => {
                 const playerTeam = game.players.find((p: Player) => p.userId === session.user.id)?.team
+                const playerRole = game.players.find((p: Player) => p.userId === session.user.id)?.role
                 return (
                   <div
                     key={game.id}
@@ -262,14 +263,26 @@ export default function Home() {
                     } border-2 ${playerTeam === 'red' ? 'border-red-500/20' : 'border-blue-500/20'}`}
                   >
                     <div className="flex justify-between items-center font-mono">
-                      <span className={`text-sm ${playerTeam === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
-                        {new Date(game.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit'
-                        })}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {playerRole === 'spymaster' ? (
+                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        )}
+                        <span className="text-sm text-slate-400">
+                          {new Date(game.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )
@@ -287,26 +300,39 @@ export default function Home() {
               .filter(game => game.completedAt)
               .map(game => {
                 const playerTeam = game.players.find((p: Player) => p.userId === session.user.id)?.team
+                const playerRole = game.players.find((p: Player) => p.userId === session.user.id)?.role
                 const didWin = game.winner === playerTeam
                 return (
                   <div
                     key={game.id}
                     onClick={() => router.push(`/game/${game.id}`)}
                     className={`bg-slate-800/50 p-4 rounded-lg cursor-pointer hover:bg-slate-800/70 transition-all
-                              border-2 ${didWin ? 'border-emerald-500/20' : 'border-red-500/20'}`}
+                              border-2 ${playerTeam === 'red' ? 'border-red-500/20' : 'border-blue-500/20'}`}
                   >
                     <div className="flex justify-between items-center font-mono">
-                      <span className="text-sm text-slate-400">
-                        {new Date(game.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit'
-                        })}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {playerRole === 'spymaster' ? (
+                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        )}
+                        <span className="text-sm text-slate-400">
+                          {new Date(game.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
                       {game.winner && (
-                        <span className={`text-sm ${game.winner === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
-                          {game.winner.toUpperCase()} Won
+                        <span className={`text-sm ${didWin ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {didWin ? 'Win' : 'Loss'}
                         </span>
                       )}
                     </div>
