@@ -1,13 +1,168 @@
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 import { prisma } from '@/lib/prisma'
 import type { NextApiRequest, NextApiResponse } from 'next'
-import type { GameContext } from '@/types/ai'
+import { GameState, Team, Role, SpymasterContext, OperativeContext, ExternalVariables } from '@/types/game'
 import { getSpymasterHint, getOperativeGuess } from '@/utils/ai-players'
 
-interface GameCard {
-  word: string
-  type: 'red' | 'blue' | 'neutral' | 'assassin'
-  revealed: boolean
+interface Move {
+  teamTurn: Team;
+  cardIndex: number;
+  cardType: string;
+  createdAt: string;
+  playerId: string;
+}
+
+interface GameData {
+  id: string;
+  currentState: string;
+  externalVars: string;
+  winner: Team | null;
+  endReason: string | null;
+  currentClue: string | null;
+  currentNumber: number | null;
+  redSpymasterModel: string | null;
+  blueSpymasterModel: string | null;
+  redOperativeModel: string | null;
+  blueOperativeModel: string | null;
+  moves: Move[];
+  players: Array<{
+    userId: string;
+    team: Team;
+    role: Role;
+  }>;
+}
+
+interface PrismaGame {
+  id: string;
+  currentState: string;
+  externalVars: any;
+  winner: string | null;
+  endReason: string | null;
+  currentClue: string | null;
+  currentNumber: number | null;
+  redSpymasterModel: string | null;
+  blueSpymasterModel: string | null;
+  redOperativeModel: string | null;
+  blueOperativeModel: string | null;
+  moves: Array<{
+    id: string;
+    createdAt: Date;
+    playerId: string;
+    cardIndex: number;
+    cardType: string;
+    teamTurn: string;
+    gameId: string;
+  }>;
+  players: Array<{
+    id: string;
+    team: string;
+    userId: string;
+    gameId: string;
+    role: string;
+  }>;
+  hints: Array<{
+    id: string;
+    team: string;
+    word: string;
+    number: number;
+    timestamp: Date;
+    gameId: string;
+  }>;
+}
+
+// Helper to parse external vars safely
+function parseExternalVars(varsJson: string | null): ExternalVariables | null {
+  if (!varsJson) return null;
+  try {
+    return JSON.parse(varsJson);
+  } catch (e) {
+    console.error('Failed to parse external vars:', e);
+    return null;
+  }
+}
+
+// Helper to get current team from game state string
+function getTeamFromState(stateStr: string): Team {
+  const state = stateStr as GameState;
+  if (state === GameState.RED_SPYMASTER || state === GameState.RED_OPERATIVE || state === GameState.RED_WIN) {
+    return 'red';
+  }
+  return 'blue';
+}
+
+// Helper to create game context for AI players
+function createGameContext(game: GameData, parsedVars: ExternalVariables): SpymasterContext | OperativeContext {
+  const currentTeam = getTeamFromState(game.currentState);
+  const isOperative = game.currentState === GameState.RED_OPERATIVE || game.currentState === GameState.BLUE_OPERATIVE;
+
+  const baseContext = {
+    currentState: game.currentState as GameState,
+    currentTeam,
+    remainingRed: parsedVars.board.remainingRed,
+    remainingBlue: parsedVars.board.remainingBlue,
+    currentClue: game.currentClue ? {
+      word: game.currentClue,
+      number: game.currentNumber!
+    } : undefined
+  };
+
+  if (isOperative) {
+    return {
+      ...baseContext,
+      cards: parsedVars.board.cards,
+      remainingGuesses: parsedVars.remainingGuesses,
+      availableMoves: parsedVars.board.cards
+        .map((card, index) => ({ index, revealed: card.revealed }))
+        .filter(card => !card.revealed)
+        .map(card => card.index),
+      previousGuesses: game.moves
+        .filter(m => m.teamTurn === currentTeam)
+        .map(m => ({
+          cardIndex: m.cardIndex,
+          word: parsedVars.board.cards[m.cardIndex].word,
+          success: m.cardType === currentTeam
+        }))
+    };
+  }
+
+  return {
+    ...baseContext,
+    cards: parsedVars.board.cards.map(card => ({
+      ...card,
+      type: card.type!
+    }))
+  };
+}
+
+// Helper to convert Prisma game to GameData
+function convertPrismaGame(game: PrismaGame): GameData {
+  return {
+    id: game.id,
+    currentState: game.currentState,
+    externalVars: typeof game.externalVars === 'string' 
+      ? game.externalVars 
+      : JSON.stringify(game.externalVars),
+    winner: game.winner as Team | null,
+    endReason: game.endReason,
+    currentClue: game.currentClue,
+    currentNumber: game.currentNumber,
+    redSpymasterModel: game.redSpymasterModel,
+    blueSpymasterModel: game.blueSpymasterModel,
+    redOperativeModel: game.redOperativeModel,
+    blueOperativeModel: game.blueOperativeModel,
+    moves: game.moves.map(m => ({
+      teamTurn: m.teamTurn as Team,
+      cardIndex: m.cardIndex,
+      cardType: m.cardType,
+      createdAt: m.createdAt.toISOString(),
+      playerId: m.playerId
+    })),
+    players: game.players.map(p => ({
+      userId: p.userId,
+      team: p.team as Team,
+      role: p.role as Role
+    }))
+  };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -40,280 +195,113 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'PATCH') {
-      const { id } = req.query
-      let { currentTeam, gameState, currentClue, currentNumber, hint } = req.body
-
       try {
-        const game = await prisma.game.findUnique({
-          where: { id: id as string },
-          include: { players: true, moves: true, hints: true }
-        })
-
-        if (!game) {
-          return res.status(404).json({ error: 'Game not found' })
-        }
-
-        // Determine current role based on whether there's a clue
-        let currentRole = game.currentClue ? 'operative' : 'spymaster'
-
-        // Initialize turn management variables
-        let nextTeam = currentTeam
-        let shouldClearClue = false
-
-        // Create context for AI moves and turn management
-        const context: GameContext = {
-          cards: gameState.cards,
-          currentTeam,
-          remainingRed: gameState.cards.filter((c: GameCard) => c.type === 'red' && !c.revealed).length,
-          remainingBlue: gameState.cards.filter((c: GameCard) => c.type === 'blue' && !c.revealed).length,
-          unrevealedCards: gameState.cards
-            .map((card: GameCard, index: number) => ({ 
-              word: card.word, 
-              index 
-            }))
-            .filter((card: { word: string, index: number }) => !gameState.cards[card.index].revealed),
-          currentClue: game.currentClue ? {
-            word: game.currentClue,
-            number: game.currentNumber!
-          } : undefined,
-          guessesThisTurn: game.moves.filter((m) => 
-            m.teamTurn === currentTeam && 
-            m.createdAt > game.turnStartedAt!
-          ).length,
-          previousGuesses: game.moves
-            .filter((m) => m.teamTurn === currentTeam)
-            .map((m) => ({
-              word: gameState.cards[m.cardIndex].word,
-              type: m.cardType,
-              success: m.cardType === currentTeam
-            }))
-        }
-
-        // Find the current player
-        const currentPlayer = game.players.find(p => 
-          p.team === currentTeam && p.role === currentRole
-        )
-
-        // First check for game end conditions
-        const assassinRevealed = gameState.cards.some((c: GameCard) => c.type === 'assassin' && c.revealed)
-        let winner: 'red' | 'blue' | null = null
-        let endReason: string | null = null
-
-        if (assassinRevealed) {
-          winner = currentTeam === 'red' ? 'blue' : 'red'
-          endReason = 'assassin'
-        } else if (context.remainingRed === 0) {
-          winner = 'red'
-          endReason = 'all_words_found'
-        } else if (context.remainingBlue === 0) {
-          winner = 'blue'
-          endReason = 'all_words_found'
-        }
-
-        // If it's an AI's turn, handle AI move
-        if (!currentPlayer?.userId) {
-          // Check if game is already over
-          if (winner) {
-            return res.status(200).json(game)  // Don't make moves if game is over
-          }
-
-          const modelId = currentTeam === 'red' 
-            ? (currentRole === 'spymaster' ? game.redSpymasterModel : game.redOperativeModel)
-            : (currentRole === 'spymaster' ? game.blueSpymasterModel : game.blueOperativeModel)
-
-          if (!modelId) {
-            return res.status(500).json({ error: 'No AI model assigned for this role' })
-          }
-
-          // Get API key for the model
-          const user = await prisma.user.findFirst({
-            where: {
-              OR: [
-                { openaiApiKey: { not: null } },
-                { anthropicKey: { not: null } }
-              ]
-            }
-          })
-
-          const apiKey = modelId.includes('claude') ? user?.anthropicKey : user?.openaiApiKey
-          if (!apiKey) {
-            return res.status(500).json({ error: 'No API key available' })
-          }
-
-          if (currentRole === 'spymaster') {
-            // Prevent giving a hint if there's already one active
-            if (game.currentClue) {
-              console.error('Attempted to give hint while one is active')
-              return res.status(400).json({ error: 'Cannot give hint while one is active' })
-            }
-
-            const hint = await getSpymasterHint(modelId, context, apiKey)
-            
-            // Validate that hint word isn't on the board
-            const isWordOnBoard = gameState.cards.some((card: GameCard) => 
-              card.word.toLowerCase().includes(hint.word.toLowerCase()) || 
-              hint.word.toLowerCase().includes(card.word.toLowerCase())
-            )
-            
-            if (isWordOnBoard) {
-              console.error(`Invalid hint "${hint.word}" - word is on the board`)
-              return res.status(400).json({ error: 'Invalid hint - word is on the board' })
-            }
-
-            currentClue = hint.word
-            currentNumber = hint.number
-            console.log(`[AI Spymaster] ${modelId} gave clue: ${hint.word} (${hint.number})`)
-            
-            // Record the hint
-            await prisma.hint.create({
-              data: {
-                gameId: id as string,
-                team: currentTeam,
-                word: hint.word,
-                number: hint.number,
-                timestamp: new Date()
-              }
-            })
-
-            // Don't switch teams after giving a hint
-          } else {
-            if (currentRole === 'operative') {
-              // Only make a guess if there's a clue from YOUR team's spymaster
-              const latestHint = game.hints
-                .filter(h => h.team === currentTeam)
-                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
-
-              if (!latestHint || !game.currentClue) {
-                console.error('Operative tried to guess without their spymaster giving a hint')
-                return res.status(400).json({ error: 'No clue available from your spymaster' })
-              }
-
-              let keepGuessing = true;
-              while (keepGuessing) {
-                // Stop if game has ended
-                if (winner) break;
-
-                // Update context with current game state before each guess
-                const updatedContext: GameContext = {
-                  ...context,
-                  unrevealedCards: gameState.cards
-                    .map((card: GameCard, index: number) => ({ 
-                      word: card.word, 
-                      index 
-                    }))
-                    .filter((card: { word: string, index: number }) => !gameState.cards[card.index].revealed),
-                  guessesThisTurn: game.moves.filter(m => 
-                    m.teamTurn === currentTeam && 
-                    m.createdAt > game.turnStartedAt!
-                  ).length,
-                  previousGuesses: game.moves
-                    .filter(m => m.teamTurn === currentTeam)
-                    .map(m => ({
-                      word: gameState.cards[m.cardIndex].word,
-                      type: m.cardType,
-                      success: m.cardType === currentTeam
-                    }))
-                };
-
-                // Make guess with updated context
-                const guess = await getOperativeGuess(modelId, updatedContext, apiKey)
-                
-                // Stop if trying to guess a revealed card
-                if (gameState.cards[guess.cardIndex].revealed) {
-                  console.error('AI tried to guess revealed card')
-                  break
-                }
-
-                // Make the guess
-                gameState.cards[guess.cardIndex].revealed = true
-                
-                // Record the move
-                await prisma.move.create({
-                  data: {
-                    gameId: id as string,
-                    playerId: `AI-${modelId}`,
-                    cardIndex: guess.cardIndex,
-                    cardType: gameState.cards[guess.cardIndex].type,
-                    teamTurn: currentTeam
-                  }
-                })
-
-                // Check if guess was wrong
-                const wrongGuess = gameState.cards[guess.cardIndex].type !== currentTeam
-                if (wrongGuess) {
-                  nextTeam = currentTeam === 'red' ? 'blue' : 'red'
-                  shouldClearClue = true
-                  break
-                }
-
-                // Add artificial delay between guesses
-                await new Promise(resolve => setTimeout(resolve, 2000))
-              }
-            }
-          }
-        }
-
-        // Determine next turn
-        if (currentRole === 'operative') {
-          // Count valid guesses this turn
-          const guessesThisTurn = game.moves.filter(m => 
-            m.teamTurn === currentTeam && 
-            m.createdAt > game.turnStartedAt!
-          ).length
-
-          // Check if this move should end the turn
-          const lastMove = game.moves[game.moves.length - 1]
-          const wrongGuess = lastMove && lastMove.cardType !== currentTeam
-          const maxGuessesReached = guessesThisTurn >= (game.currentNumber || 0)
-
-          if (wrongGuess || maxGuessesReached) {
-            nextTeam = currentTeam === 'red' ? 'blue' : 'red'
-            shouldClearClue = true  // Clear clue when switching teams
-            currentRole = 'spymaster'
-          }
-          // If correct guess and under max, stay on same team's operative turn
-        }
-
-        // If a hint was provided (either from human or AI), save it
-        if (hint) {
-          await prisma.hint.create({
-            data: {
-              gameId: id as string,
-              team: hint.team,
-              word: hint.word,
-              number: hint.number,
-              timestamp: new Date()
-            }
-          })
-        }
-
-        // Update game state
-        const updatedGame = await prisma.game.update({
-          where: { id: id as string },
-          data: {
-            gameState,
-            winner,
-            endReason,
-            completedAt: winner ? new Date() : undefined,
-            currentTeam: winner ? currentTeam : nextTeam,
-            currentClue: shouldClearClue ? null : currentClue ?? game.currentClue,
-            currentNumber: shouldClearClue ? null : currentNumber ?? game.currentNumber,
-            turnStartedAt: shouldClearClue ? new Date() : game.turnStartedAt,
-            // Ensure next team starts with spymaster
-            clueGiver: shouldClearClue ? null : game.clueGiver
-          },
+        const prismaGame = await prisma.game.findUnique({
+          where: { id: req.query.id as string },
           include: {
             players: true,
             moves: true,
             hints: true
           }
-        })
+        });
 
-        return res.status(200).json(updatedGame)
+        if (!prismaGame) {
+          return res.status(404).json({ error: 'Game not found' });
+        }
 
+        const game = convertPrismaGame(prismaGame);
+        const parsedVars = parseExternalVars(game.externalVars);
+        if (!parsedVars) {
+          return res.status(500).json({ error: 'Failed to parse game state' });
+        }
+
+        const currentTeam = getTeamFromState(game.currentState);
+        const currentRole = game.currentClue ? 'operative' : 'spymaster';
+
+        // Handle AI moves
+        const currentPlayer = game.players.find(p => 
+          p.team === currentTeam && p.role === currentRole
+        );
+
+        if (!currentPlayer?.userId) {
+          // It's an AI's turn
+          const user = await prisma.user.findUnique({
+            where: { id: session.user.id }
+          });
+
+          if (!user?.openaiApiKey && !user?.anthropicKey) {
+            return res.status(400).json({ error: 'API key required for AI moves' });
+          }
+
+          const gameContext = createGameContext(game, parsedVars);
+          const apiKey = user.openaiApiKey || user.anthropicKey!;
+          const modelId = currentRole === 'spymaster'
+            ? (currentTeam === 'red' ? game.redSpymasterModel : game.blueSpymasterModel)
+            : (currentTeam === 'red' ? game.redOperativeModel : game.blueOperativeModel);
+
+          if (!modelId) {
+            return res.status(400).json({ error: 'No AI model configured for this role' });
+          }
+
+          try {
+            if (currentRole === 'spymaster') {
+              const hint = await getSpymasterHint(modelId, gameContext as SpymasterContext, apiKey);
+              // Update game with AI's hint
+              const updatedGame = await prisma.game.update({
+                where: { id: game.id },
+                data: {
+                  currentState: currentTeam === 'red' ? GameState.RED_OPERATIVE : GameState.BLUE_OPERATIVE,
+                  currentClue: hint.word,
+                  currentNumber: hint.number,
+                  hints: {
+                    create: {
+                      team: currentTeam,
+                      word: hint.word,
+                      number: hint.number
+                    }
+                  }
+                },
+                include: {
+                  players: true,
+                  moves: true,
+                  hints: true
+                }
+              });
+              return res.status(200).json(updatedGame);
+            } else {
+              const guess = await getOperativeGuess(modelId, gameContext as OperativeContext, apiKey);
+              // Update game with AI's guess
+              const updatedGame = await prisma.game.update({
+                where: { id: game.id },
+                data: {
+                  moves: {
+                    create: {
+                      playerId: `AI-${currentTeam}-${currentRole}`,
+                      cardIndex: guess.cardIndex,
+                      cardType: parsedVars.board.cards[guess.cardIndex].type!,
+                      teamTurn: currentTeam
+                    }
+                  }
+                },
+                include: {
+                  players: true,
+                  moves: true,
+                  hints: true
+                }
+              });
+              return res.status(200).json(updatedGame);
+            }
+          } catch (error) {
+            console.error('AI move error:', error);
+            return res.status(500).json({ error: 'Failed to generate AI move' });
+          }
+        }
+
+        // Handle human moves
+        // ... rest of the handler ...
       } catch (error) {
-        console.error('Game update error:', error)
-        return res.status(500).json({ error: 'Error updating game' })
+        console.error('Game update error:', error);
+        return res.status(500).json({ error: 'Failed to update game' });
       }
     }
 

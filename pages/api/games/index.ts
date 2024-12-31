@@ -2,6 +2,7 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 import { prisma } from '@/lib/prisma'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { Card, initializeGameBoard } from '@/utils/game'
+import { Team, Role, GameState } from '@/types/game'
 
 interface PrismaError {
   code?: string;
@@ -12,17 +13,14 @@ interface PrismaError {
 }
 
 interface CreateGameBody {
-  team: 'red' | 'blue'
-  role: 'spymaster' | 'operative'
-  gameState: {
-    cards: Card[]
-  }
+  team: Team;
+  role: Role;
   aiModels: {
-    redSpymaster?: string
-    blueSpymaster?: string
-    redOperative?: string
-    blueOperative?: string
-  }
+    redSpymaster?: string;
+    blueSpymaster?: string;
+    redOperative?: string;
+    blueOperative?: string;
+  };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -48,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST') {
-      const { team, role, aiModels } = req.body
+      const { team, role, aiModels } = req.body as CreateGameBody;
 
       // Validate required fields
       if (!team || !role) {
@@ -68,48 +66,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       try {
         // Initialize game state
-        const gameState = initializeGameBoard()
+        const gameState = initializeGameBoard();
         if (!gameState.cards || gameState.cards.length !== 25) {
-          throw new Error('Failed to initialize game board')
+          throw new Error('Failed to initialize game board');
         }
 
-        // Determine which AI models are needed based on player's role
-        const requiredModels = []
-        if (team === 'red') {
-          if (role === 'spymaster') {
-            requiredModels.push('redOperative', 'blueSpymaster', 'blueOperative')
-          } else {
-            requiredModels.push('redSpymaster', 'blueSpymaster', 'blueOperative')
+        // Create initial external variables
+        const externalVars = {
+          board: {
+            cards: gameState.cards,
+            remainingRed: gameState.cards.filter(c => c.type === 'red').length,
+            remainingBlue: gameState.cards.filter(c => c.type === 'blue').length
+          },
+          remainingGuesses: null,
+          turnTimer: {
+            startedAt: new Date(),
+            durationSeconds: 180
           }
-        } else {
-          if (role === 'spymaster') {
-            requiredModels.push('blueOperative', 'redSpymaster', 'redOperative')
-          } else {
-            requiredModels.push('blueSpymaster', 'redSpymaster', 'redOperative')
-          }
-        }
-
-        // Validate required AI models are provided
-        const missingModels = requiredModels.filter(model => !aiModels?.[model])
-        if (missingModels.length > 0) {
-          return res.status(400).json({
-            error: 'Missing AI models',
-            message: `Missing required AI models: ${missingModels.join(', ')}`
-          })
-        }
+        };
 
         // Create game with player and AI model assignments
         const game = await prisma.game.create({
           data: {
-            currentTeam: 'red',
-            turnStartedAt: new Date().toISOString(),
-            gameState: {
-              cards: gameState.cards.map(card => ({
-                word: card.word,
-                type: card.type,
-                revealed: card.revealed
-              }))
-            },
+            currentState: GameState.RED_SPYMASTER,
+            externalVars: JSON.stringify(externalVars),
             redSpymasterModel: aiModels.redSpymaster || null,
             blueSpymasterModel: aiModels.blueSpymaster || null,
             redOperativeModel: aiModels.redOperative || null,
@@ -126,9 +106,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             players: true,
             moves: true
           }
-        })
+        });
 
-        return res.status(200).json(game)
+        return res.status(200).json(game);
       } catch (error) {
         console.error('Error creating game:', error)
         return res.status(500).json({ 

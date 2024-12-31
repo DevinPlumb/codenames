@@ -2,46 +2,53 @@ import { useSession } from '@supabase/auth-helpers-react'
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 import AuthComponent from '../../components/Auth'
-import { Card } from '../../utils/game'
-import { Player } from '../../types/game'
+import { BaseCard, CardType, Team, Role, Player, GameState } from '@/types/game'
 import TurnTimer from '../../components/TurnTimer'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
-interface GameData {
-  id: string
-  currentTeam: 'red' | 'blue'
-  gameState: {
-    cards: Card[]
-  }
-  winner: string | null
-  endReason: string | null
-  players: Player[]
-  turnStartedAt: string
-  currentClue: string | null
-  currentNumber: number | null
-  hints: Array<{
-    team: string
-    word: string
-    number: number
-    timestamp: string
-  }>
-  moves: Array<{
-    teamTurn: string
-    cardIndex: number
-    cardType: string
-    createdAt: string
-    playerId: string
-  }>
+interface ParsedExternalVars {
+  board: {
+    cards: BaseCard[];
+    remainingRed: number;
+    remainingBlue: number;
+  };
+  remainingGuesses: number | null;
+  turnTimer: {
+    startedAt: Date;
+    durationSeconds: number;
+  };
 }
 
-// Add type conversion helper
-function convertCardType(type: 'red' | 'blue' | 'neutral' | 'assassin'): 'R' | 'B' | 'A' | 'N' {
-  switch (type) {
-    case 'red': return 'R'
-    case 'blue': return 'B'
-    case 'assassin': return 'A'
-    case 'neutral': return 'N'
+interface GameData {
+  id: string;
+  currentState: GameState;
+  externalVars: string; // JSON string of ExternalVariables
+  winner: Team | null;
+  endReason: string | null;
+  players: Player[];
+  currentClue: string | null;
+  currentNumber: number | null;
+  hints: Array<{
+    team: Team;
+    word: string;
+    number: number;
+    timestamp: string;
+  }>;
+  moves: Array<{
+    teamTurn: Team;
+    cardIndex: number;
+    cardType: CardType;
+    createdAt: string;
+    playerId: string;
+  }>;
+}
+
+// Helper to get current team from game state
+function getTeamFromState(state: GameState): Team {
+  if (state === GameState.RED_SPYMASTER || state === GameState.RED_OPERATIVE || state === GameState.RED_WIN) {
+    return 'red';
   }
+  return 'blue';
 }
 
 function GameCard({ word, type, revealed, onClick, disabled }: {
@@ -100,17 +107,17 @@ function GameCard({ word, type, revealed, onClick, disabled }: {
   )
 }
 
-function DebugPanel({ moves, gameState, hints }: { 
+function DebugPanel({ moves, board, hints }: { 
   moves: Array<{
-    teamTurn: string
+    teamTurn: Team
     cardIndex: number
-    cardType: string
+    cardType: CardType
     createdAt: string
     playerId: string
   }>, 
-  gameState: { cards: Card[] },
+  board: { cards: BaseCard[] },
   hints: Array<{
-    team: string
+    team: Team
     word: string
     number: number
     timestamp: string
@@ -169,7 +176,7 @@ function DebugPanel({ moves, gameState, hints }: {
                     {event.data.teamTurn.toUpperCase()} Team Guess
                   </div>
                   <div>Player: {event.data.playerId.startsWith('AI-') ? 'AI' : 'Human'}</div>
-                  <div>Word: {gameState.cards[event.data.cardIndex].word}</div>
+                  <div>Word: {board.cards[event.data.cardIndex].word}</div>
                   <div className={event.data.cardType === event.data.teamTurn ? 'text-emerald-400' : 'text-red-400'}>
                     Result: {event.data.cardType === event.data.teamTurn ? 'Correct!' : 'Wrong!'}
                   </div>
@@ -200,9 +207,16 @@ export default function GamePage() {
   const router = useRouter()
   const { id } = router.query
   const [game, setGame] = useState<GameData | null>(null)
+  const [parsedVars, setParsedVars] = useState<ParsedExternalVars | null>(null)
   const [loading, setLoading] = useState(true)
   const [clueWord, setClueWord] = useState('')
   const [clueNumber, setClueNumber] = useState<number>(0)
+
+  useEffect(() => {
+    if (game?.externalVars) {
+      setParsedVars(JSON.parse(game.externalVars));
+    }
+  }, [game?.externalVars]);
 
   useEffect(() => {
     if (session && id) {
@@ -215,7 +229,7 @@ export default function GamePage() {
       }, 2000)
       return () => clearInterval(interval)
     }
-  }, [session, id, game?.currentTeam])
+  }, [session, id, game?.currentState])
 
   useEffect(() => {
     if (session && id && game) {
@@ -224,8 +238,9 @@ export default function GamePage() {
 
       // Check if it's an AI's turn
       const currentRole = game.currentClue ? 'operative' : 'spymaster'
+      const currentTeam = getTeamFromState(game.currentState)
       const currentPlayer = game.players.find(p => 
-        p.team === game.currentTeam && p.role === currentRole
+        p.team === currentTeam && p.role === currentRole
       )
       
       // If it's an AI's turn, trigger the move
@@ -235,15 +250,15 @@ export default function GamePage() {
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            currentTeam: game.currentTeam,
-            gameState: game.gameState
+            currentState: game.currentState,
+            externalVars: game.externalVars
           })
         }).then(res => res.json())
           .then(updatedGame => setGame(updatedGame))
           .catch(() => {}) // Silently handle AI move errors
       }
     }
-  }, [session, id, game?.currentTeam, game?.currentClue])
+  }, [session, id, game?.currentState, game?.currentClue])
 
   const loadGame = async () => {
     try {
@@ -265,124 +280,148 @@ export default function GamePage() {
   }
 
   const handleCardClick = async (index: number) => {
-    if (!game || !session || game.winner) return
-    if (!game.currentClue || isSpymaster) return
-    if (game.gameState.cards[index].revealed) return // Prevent clicking revealed cards
+    if (!game || !parsedVars || !session || game.winner) return;
+    if (!game.currentClue || isSpymaster) return;
+    if (parsedVars.board.cards[index].revealed) return;
 
     try {
-      const updatedGameState = {
-        ...game.gameState,
-        cards: game.gameState.cards.map((card, i) => 
-          i === index ? { ...card, revealed: true } : card
-        )
-      }
+      const updatedCards = parsedVars.board.cards.map((card, i) => 
+        i === index ? { ...card, revealed: true } : card
+      );
+
+      const updatedVars = {
+        ...parsedVars,
+        board: {
+          ...parsedVars.board,
+          cards: updatedCards
+        }
+      };
 
       // Count guesses made this turn
+      const currentTeam = getTeamFromState(game.currentState);
       const guessesThisTurn = game.moves.filter(m => 
-        m.teamTurn === game.currentTeam && 
-        new Date(m.createdAt) > new Date(game.turnStartedAt)
-      ).length
+        m.teamTurn === currentTeam && 
+        new Date(m.createdAt) > new Date(parsedVars.turnTimer.startedAt)
+      ).length;
 
       // Check if this guess should end the turn
-      const isWrongGuess = game.gameState.cards[index].type !== game.currentTeam
-      const isLastGuess = guessesThisTurn >= (game.currentNumber || 0)
-      const shouldEndTurn = isWrongGuess // Only end turn on wrong guess
+      const isWrongGuess = parsedVars.board.cards[index].type !== currentTeam;
+      const isLastGuess = guessesThisTurn >= (game.currentNumber || 0);
+      const shouldEndTurn = isWrongGuess;
+
+      const nextState = shouldEndTurn 
+        ? currentTeam === 'red' 
+          ? GameState.BLUE_SPYMASTER 
+          : GameState.RED_SPYMASTER
+        : game.currentState;
 
       const res = await fetch(`/api/games/${id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          currentTeam: shouldEndTurn ? (game.currentTeam === 'red' ? 'blue' : 'red') : game.currentTeam,
-          gameState: updatedGameState,
+          currentState: nextState,
+          externalVars: JSON.stringify(updatedVars),
           currentClue: shouldEndTurn ? null : game.currentClue,
           currentNumber: shouldEndTurn ? null : game.currentNumber
         })
-      })
+      });
 
-      if (!res.ok) throw new Error('Failed to update game')
-      const updatedGame = await res.json()
-      setGame(updatedGame)
+      if (!res.ok) throw new Error('Failed to update game');
+      const updatedGame = await res.json();
+      setGame(updatedGame);
     } catch (error) {
       // Silently handle card click errors
     }
-  }
+  };
 
   const handleGiveClue = async () => {
-    if (!game || !session || !clueWord || !clueNumber) return
+    if (!game || !parsedVars || !session || !clueWord || !clueNumber) return;
 
     try {
-      // Create the hint object
+      const currentTeam = getTeamFromState(game.currentState);
       const hint = {
-        team: game.currentTeam,
+        team: currentTeam,
         word: clueWord,
         number: clueNumber,
         timestamp: new Date().toISOString()
-      }
+      };
+
+      const nextState = currentTeam === 'red' 
+        ? GameState.RED_OPERATIVE 
+        : GameState.BLUE_OPERATIVE;
 
       const res = await fetch(`/api/games/${id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          currentTeam: game.currentTeam,
-          gameState: game.gameState,
+          currentState: nextState,
+          externalVars: game.externalVars,
           currentClue: clueWord,
           currentNumber: clueNumber,
           hint
         })
-      })
+      });
 
-      if (!res.ok) throw new Error('Failed to give clue')
-      const updatedGame = await res.json()
-      setGame(updatedGame)
-      setClueWord('')
-      setClueNumber(0)
+      if (!res.ok) throw new Error('Failed to give clue');
+      const updatedGame = await res.json();
+      setGame(updatedGame);
+      setClueWord('');
+      setClueNumber(0);
     } catch (error) {
       // Silently handle clue errors
     }
-  }
+  };
 
   const handleEndTurn = async () => {
-    if (!game || game.winner) return
+    if (!game || !parsedVars || game.winner) return;
 
     try {
+      const currentTeam = getTeamFromState(game.currentState);
+      const nextState = currentTeam === 'red' 
+        ? GameState.BLUE_SPYMASTER 
+        : GameState.RED_SPYMASTER;
+
       const res = await fetch(`/api/games/${id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          currentTeam: game.currentTeam === 'red' ? 'blue' : 'red',
-          gameState: game.gameState,
+          currentState: nextState,
+          externalVars: game.externalVars,
           currentClue: null,
           currentNumber: null
         })
-      })
-      const updatedGame = await res.json()
-      setGame(updatedGame)
+      });
+      const updatedGame = await res.json();
+      setGame(updatedGame);
     } catch (error) {
       // Silently handle end turn errors
     }
-  }
+  };
 
   if (!session) return <AuthComponent />
   if (loading) return <LoadingSpinner />
-  if (!game || !game.players) return null
+  if (!game || !parsedVars || !game.players) return null
 
   const player = game.players.find(p => p.userId === session.user.id)
   if (!player) return null
 
+  const currentTeam = getTeamFromState(game.currentState)
   const isSpymaster = player.role === 'spymaster'
-  const isCurrentTeamsTurn = game.currentTeam === player.team
+  const isCurrentTeamsTurn = currentTeam === player.team
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 p-4">
       {/* Debug panel */}
-      {game && <DebugPanel 
-        moves={game.moves} 
-        gameState={game.gameState} 
-        hints={game.hints || []} 
-      />}
+      {game && parsedVars && (
+        <DebugPanel 
+          moves={game.moves} 
+          board={parsedVars.board}
+          hints={game.hints || []} 
+        />
+      )}
       
       <div className="max-w-7xl mx-auto">
         {/* Game header */}
@@ -397,26 +436,26 @@ export default function GamePage() {
                 ← Back
               </button>
               <div className={`font-mono text-xl ${
-                game.currentTeam === 'red' ? 'text-red-400' : 'text-blue-400'
+                currentTeam === 'red' ? 'text-red-400' : 'text-blue-400'
               }`}>
-                {game.currentTeam === 'red' ? 'Red Team\'s Turn' : 'Blue Team\'s Turn'}
+                {currentTeam === 'red' ? 'Red Team\'s Turn' : 'Blue Team\'s Turn'}
               </div>
               {!game.winner && (
                 <TurnTimer
-                  duration={120}
+                  duration={parsedVars.turnTimer.durationSeconds}
                   onTimeUp={handleEndTurn}
-                  turnStartedAt={game.turnStartedAt}
+                  turnStartedAt={parsedVars.turnTimer.startedAt.toISOString()}
                 />
               )}
             </div>
             {!game.winner && 
-             game.currentTeam === player.team && 
+             currentTeam === player.team && 
              !isSpymaster && 
              game.currentClue && (
               <button
                 onClick={handleEndTurn}
                 className={`px-4 py-2 rounded-xl font-mono border transition-all duration-200 hover:scale-[1.02] shadow-lg ${
-                  game.currentTeam === 'red' 
+                  currentTeam === 'red' 
                     ? 'bg-red-500/80 hover:bg-red-600/80 text-white border-red-700/50' 
                     : 'bg-blue-500/80 hover:bg-blue-600/80 text-white border-blue-700/50'
                 }`}
@@ -465,8 +504,8 @@ export default function GamePage() {
 
           {game.currentClue && (
             <div className="font-mono text-slate-200 text-center">
-              <span className={`font-bold ${game.currentTeam === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
-                {game.currentTeam.toUpperCase()} Team's Clue:
+              <span className={`font-bold ${currentTeam === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
+                {currentTeam.toUpperCase()} Team's Clue:
               </span>{' '}
               <span className="text-emerald-400 font-bold">{game.currentClue}</span>{' '}
               <span className="text-slate-400">(pointing to</span>{' '}
@@ -478,14 +517,14 @@ export default function GamePage() {
 
         {/* Game board */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-4">
-          {game.gameState.cards.map((card, index) => (
+          {parsedVars.board.cards.map((card, index) => (
             <button
               key={index}
               onClick={() => handleCardClick(index)}
               disabled={
                 card.revealed ||  // Already revealed cards can't be clicked
                 game.winner !== null ||  // Game over
-                game.currentTeam !== player.team ||  // Not your team's turn
+                currentTeam !== player.team ||  // Not your team's turn
                 isSpymaster ||  // Spymasters can't click
                 (!isSpymaster && !game.currentClue)  // Operatives need a clue to click
               }

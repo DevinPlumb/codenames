@@ -24,21 +24,19 @@ model Game {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   completedAt   DateTime?
-  currentTeam   String
-  gameState     Json
-  winner        String?
-  endReason     String?
-  turnStartedAt DateTime?
-  currentClue   String?
-  currentNumber Int?
-  clueGiver     String?
+  currentState  String      // Stores GameState enum as string
+  externalVars  Json        // Stores ExternalVariables
+  winner        String?     // 'red' | 'blue'
+  endReason     String?     // 'assassin' | 'words_found' | 'time_up'
+  currentClue   String?     // For historical record
+  currentNumber Int?        // For historical record
   redSpymasterModel    String?
   blueSpymasterModel   String?
   redOperativeModel    String?
   blueOperativeModel   String?
-  players       GamePlayer[]
-  moves         Move[]
-  hints         Hint[]
+  players      GamePlayer[]
+  moves        Move[]
+  hints        Hint[]
 
   @@map("games")
 }

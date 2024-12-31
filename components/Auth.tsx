@@ -47,8 +47,10 @@ export default function AuthComponent() {
             divider: 'text-slate-400'
           }
         }}
+        theme="dark"
         providers={[]}
-        magicLink={true}
+        magicLink={false}
+        redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
       />
     </div>
   )

@@ -22,8 +22,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           email: session.user.email
         }
       })
+
+      return res.redirect('/settings')
     }
   }
 
-  res.redirect('/')
-}
+  res.redirect('/auth')
+} 

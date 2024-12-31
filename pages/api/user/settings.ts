@@ -7,11 +7,7 @@ import Anthropic from '@anthropic-ai/sdk'
 async function validateOpenAIKey(apiKey: string): Promise<boolean> {
   try {
     const openai = new OpenAI({ apiKey })
-    await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: 'test' }],
-      max_tokens: 1
-    })
+    await openai.models.list()
     return true
   } catch (error) {
     console.error('OpenAI validation error:', error)
@@ -22,11 +18,7 @@ async function validateOpenAIKey(apiKey: string): Promise<boolean> {
 async function validateAnthropicKey(apiKey: string): Promise<boolean> {
   try {
     const anthropic = new Anthropic({ apiKey })
-    await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
-      messages: [{ role: 'user', content: 'test' }],
-      max_tokens: 1
-    })
+    await anthropic.models.list()
     return true
   } catch (error) {
     console.error('Anthropic validation error:', error)

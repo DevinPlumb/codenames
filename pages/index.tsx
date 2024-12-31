@@ -21,6 +21,7 @@ export default function Home() {
     openai: false,
     anthropic: false
   })
+  const { code } = router.query
 
   useEffect(() => {
     if (session) {
@@ -28,6 +29,13 @@ export default function Home() {
       loadSettings()
     }
   }, [session])
+
+  useEffect(() => {
+    if (code) {
+      // If we have a code, redirect to the proper callback endpoint
+      router.replace(`/auth/callback?code=${code}`)
+    }
+  }, [code, router])
 
   const loadGames = async () => {
     try {
