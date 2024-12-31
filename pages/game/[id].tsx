@@ -212,6 +212,12 @@ export default function GamePage() {
   const [clueWord, setClueWord] = useState('')
   const [clueNumber, setClueNumber] = useState<number>(0)
 
+  // Calculate team and turn state early
+  const player = game?.players?.find(p => p.userId === session?.user?.id)
+  const currentTeam = game ? getTeamFromState(game.currentState) : null
+  const isSpymaster = player?.role === 'spymaster'
+  const isCurrentTeamsTurn = player && currentTeam ? currentTeam === player.team : false
+
   useEffect(() => {
     if (game?.externalVars) {
       setParsedVars(JSON.parse(game.externalVars));
@@ -229,7 +235,7 @@ export default function GamePage() {
       }, 2000)
       return () => clearInterval(interval)
     }
-  }, [session, id, game?.currentState])
+  }, [session, id, game?.currentState, isCurrentTeamsTurn])
 
   useEffect(() => {
     if (session && id && game) {
@@ -243,8 +249,11 @@ export default function GamePage() {
         p.team === currentTeam && p.role === currentRole
       )
       
-      // If it's an AI's turn, trigger the move
-      if (!currentPlayer?.userId) {
+      // Only trigger AI move if:
+      // 1. There is a current player slot
+      // 2. That player slot has no userId (meaning it's an AI)
+      // 3. The current player slot isn't the session user's slot
+      if (currentPlayer && !currentPlayer.userId && currentPlayer.userId !== session.user.id) {
         fetch(`/api/games/${id}`, {
           method: 'PATCH',
           credentials: 'include',
@@ -404,13 +413,10 @@ export default function GamePage() {
   if (!session) return <AuthComponent />
   if (loading) return <LoadingSpinner />
   if (!game || !parsedVars || !game.players) return null
-
-  const player = game.players.find(p => p.userId === session.user.id)
   if (!player) return null
 
-  const currentTeam = getTeamFromState(game.currentState)
-  const isSpymaster = player.role === 'spymaster'
-  const isCurrentTeamsTurn = currentTeam === player.team
+  // We know game exists at this point, so we can safely get the team
+  const displayTeam = getTeamFromState(game.currentState)
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 p-4">
@@ -436,9 +442,9 @@ export default function GamePage() {
                 ← Back
               </button>
               <div className={`font-mono text-xl ${
-                currentTeam === 'red' ? 'text-red-400' : 'text-blue-400'
+                displayTeam === 'red' ? 'text-red-400' : 'text-blue-400'
               }`}>
-                {currentTeam === 'red' ? 'Red Team\'s Turn' : 'Blue Team\'s Turn'}
+                {displayTeam === 'red' ? 'Red' : 'Blue'} Team's Turn
               </div>
               {!game.winner && (
                 <TurnTimer
@@ -449,13 +455,13 @@ export default function GamePage() {
               )}
             </div>
             {!game.winner && 
-             currentTeam === player.team && 
+             displayTeam === player.team && 
              !isSpymaster && 
              game.currentClue && (
               <button
                 onClick={handleEndTurn}
                 className={`px-4 py-2 rounded-xl font-mono border transition-all duration-200 hover:scale-[1.02] shadow-lg ${
-                  currentTeam === 'red' 
+                  displayTeam === 'red' 
                     ? 'bg-red-500/80 hover:bg-red-600/80 text-white border-red-700/50' 
                     : 'bg-blue-500/80 hover:bg-blue-600/80 text-white border-blue-700/50'
                 }`}
@@ -504,8 +510,8 @@ export default function GamePage() {
 
           {game.currentClue && (
             <div className="font-mono text-slate-200 text-center">
-              <span className={`font-bold ${currentTeam === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
-                {currentTeam.toUpperCase()} Team's Clue:
+              <span className={`font-bold ${displayTeam === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
+                {displayTeam.toUpperCase()} Team's Clue:
               </span>{' '}
               <span className="text-emerald-400 font-bold">{game.currentClue}</span>{' '}
               <span className="text-slate-400">(pointing to</span>{' '}
@@ -524,7 +530,7 @@ export default function GamePage() {
               disabled={
                 card.revealed ||  // Already revealed cards can't be clicked
                 game.winner !== null ||  // Game over
-                currentTeam !== player.team ||  // Not your team's turn
+                displayTeam !== player.team ||  // Not your team's turn
                 isSpymaster ||  // Spymasters can't click
                 (!isSpymaster && !game.currentClue)  // Operatives need a clue to click
               }

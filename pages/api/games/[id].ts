@@ -298,7 +298,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         // Handle human moves
-        // ... rest of the handler ...
+        const { currentState, externalVars, currentClue, currentNumber, hint } = req.body;
+        
+        // Update game with the human move
+        const updatedGame = await prisma.game.update({
+          where: { id: game.id },
+          data: {
+            currentState,
+            externalVars,
+            currentClue,
+            currentNumber,
+            ...(hint && {
+              hints: {
+                create: {
+                  team: hint.team,
+                  word: hint.word,
+                  number: hint.number
+                }
+              }
+            })
+          },
+          include: {
+            players: true,
+            moves: true,
+            hints: true
+          }
+        });
+        return res.status(200).json(updatedGame);
       } catch (error) {
         console.error('Game update error:', error);
         return res.status(500).json({ error: 'Failed to update game' });
