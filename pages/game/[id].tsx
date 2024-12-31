@@ -14,7 +14,7 @@ interface ParsedExternalVars {
   };
   remainingGuesses: number | null;
   turnTimer: {
-    startedAt: Date;
+    startedAt: string;
     durationSeconds: number;
   };
 }
@@ -444,7 +444,7 @@ export default function GamePage() {
                 <TurnTimer
                   duration={parsedVars.turnTimer.durationSeconds}
                   onTimeUp={handleEndTurn}
-                  turnStartedAt={parsedVars.turnTimer.startedAt.toISOString()}
+                  turnStartedAt={parsedVars.turnTimer.startedAt}
                 />
               )}
             </div>

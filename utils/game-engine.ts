@@ -176,7 +176,7 @@ export class GameEngine {
 
   // Helper methods
   private isTimerExpired(vars: ExternalVariables): boolean {
-    const elapsed = (new Date().getTime() - vars.turnTimer.startedAt.getTime()) / 1000;
+    const elapsed = (new Date().getTime() - new Date(vars.turnTimer.startedAt).getTime()) / 1000;
     return elapsed >= vars.turnTimer.durationSeconds;
   }
 
@@ -184,7 +184,7 @@ export class GameEngine {
     return {
       ...vars,
       turnTimer: {
-        startedAt: new Date(),
+        startedAt: new Date().toISOString(),
         durationSeconds: this.TURN_DURATION_SECONDS
       },
       remainingGuesses: null

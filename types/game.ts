@@ -34,7 +34,7 @@ export interface ExternalVariables {
   board: GameBoard;
   remainingGuesses: number | null;  // null when not in operative state
   turnTimer: {
-    startedAt: Date;
+    startedAt: string;  // ISO date string
     durationSeconds: number;
   };
 }

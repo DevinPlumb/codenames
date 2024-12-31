@@ -80,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
           remainingGuesses: null,
           turnTimer: {
-            startedAt: new Date(),
+            startedAt: new Date().toISOString(),
             durationSeconds: 180
           }
         };
