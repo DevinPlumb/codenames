@@ -16,6 +16,42 @@ The Spymaster gives a one-word clue followed by a number, indicating how many ca
 - Select a neutral card (turn ends)
 - Choose to end their turn
 
+## Game State Machine
+
+The game follows a finite state machine (FSM) pattern with six possible states and various transitions between them. The diagram below illustrates the game flow:
+
+```mermaid
+stateDiagram
+    RS: Red Spymaster
+    RO: Red Operative
+    BS: Blue Spymaster
+    BO: Blue Operative
+    RW: Red Win
+    BW: Blue Win
+
+    note right of RO
+        State info:
+        - Number of remaining related words
+        - Card values, color assignment, and revealed status
+    end note
+
+    RS --> RO: gives clue (set guesses = number + 1)
+    RS --> BS: time elapsed
+    RO --> BW: picks assassin
+    RO --> RW: red cards empty
+    RO --> BS: neutral word OR opposing word OR guesses < 0 OR time elapsed
+    RO --> RO: correct guess (decrement guesses)
+
+    BS --> BO: gives clue (set guesses = number + 1)
+    BS --> RS: time elapsed
+    BO --> RW: picks assassin
+    BO --> BW: blue cards empty
+    BO --> RS: neutral word OR opposing word OR guesses < 0 OR time elapsed
+    BO --> BO: correct guess (decrement guesses)
+```
+
+The game alternates between Spymaster and Operative turns for each team. State transitions are listed in descending order of precedence. Operative states track specific information, like the number of remaining related words and the hidden/revealed card statuses. After each operative state, the revealed card statuses are updated.
+
 ## Technologies Used
 
 ### Frontend
