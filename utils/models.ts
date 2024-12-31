@@ -27,7 +27,7 @@ export async function getAvailableModels(openaiKey?: string, anthropicKey?: stri
           }))
       )
     } catch (error) {
-      console.error('Error fetching OpenAI models:', error)
+      // Silently handle OpenAI model fetch errors
     }
   }
 
@@ -44,9 +44,8 @@ export async function getAvailableModels(openaiKey?: string, anthropicKey?: stri
           }))
       )
     } catch (error) {
-      console.error('Error fetching Anthropic models:', error)
+      // Silently handle Anthropic model fetch errors
     }
-
   }
 
   // Sort models by provider and name

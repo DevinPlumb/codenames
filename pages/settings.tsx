@@ -50,14 +50,22 @@ export default function Settings() {
 
   const loadSettings = async () => {
     try {
-      const res = await fetch('/api/user/settings')
+      const res = await fetch('/api/user/settings', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       const data = await res.json()
-      setOpenaiKey(data.openaiApiKey || '')
-      setAnthropicKey(data.anthropicKey || '')
-    } catch (error) {
+      setOpenaiKey(data.openaiApiKey ? '•'.repeat(51) : '')
+      setAnthropicKey(data.anthropicKey ? '•'.repeat(64) : '')
+      setIsEditing({
+        openai: false,
+        anthropic: false
+      })
+    } catch (err) {
+      const error = err as APIError
       // Silently handle settings loading errors
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -79,29 +87,57 @@ export default function Settings() {
     }))
   }
 
-  const handleSave = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setValidationErrors({ openai: false, anthropic: false })
+    // Clear saved status when submitting
+    setSavedStatus({ openai: false, anthropic: false })
+
     try {
       const res = await fetch('/api/user/settings', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          openaiApiKey: openaiKey,
-          anthropicKey: anthropicKey
+          openaiApiKey: openaiKey.includes('•') ? null : openaiKey || null,
+          anthropicKey: anthropicKey.includes('•') ? null : anthropicKey || null
         })
       })
 
+      const data = await res.json()
+
       if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.message || 'Failed to update settings')
+        setValidationErrors({
+          openai: data.validationResults?.openai?.valid === false,
+          anthropic: data.validationResults?.anthropic?.valid === false
+        })
+        return
       }
 
-      toast.success('Settings saved successfully')
-      router.push('/')
+      if (data.saved) {
+        // Only set savedStatus to true for keys that were actually updated
+        setSavedStatus({
+          openai: !openaiKey.includes('•') && !!openaiKey,
+          anthropic: !anthropicKey.includes('•') && !!anthropicKey
+        })
+        setIsEditing({
+          openai: false,
+          anthropic: false
+        })
+        if (openaiKey && !openaiKey.includes('•')) {
+          setOpenaiKey('•'.repeat(openaiKey.length))
+        }
+        if (anthropicKey && !anthropicKey.includes('•')) {
+          setAnthropicKey('•'.repeat(anthropicKey.length))
+        }
+      }
     } catch (error) {
       // Silently handle settings update errors
-      toast.error('Failed to save settings')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -197,7 +233,7 @@ export default function Settings() {
           </div>
 
           <button
-            onClick={handleSave}
+            onClick={handleSubmit}
             disabled={loading}
             className="w-full px-4 py-3 bg-emerald-500/80 text-white rounded-xl font-mono 
                      hover:bg-emerald-600/80 transition-all duration-200 hover:scale-[1.02] 
