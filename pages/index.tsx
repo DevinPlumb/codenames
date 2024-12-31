@@ -21,7 +21,23 @@ export default function Home() {
     openai: false,
     anthropic: false
   })
-  const { code } = router.query
+
+  useEffect(() => {
+    if (session?.user) {
+      // Create/update user when we get a session
+      fetch('/api/user', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: session.user.id,
+          email: session.user.email
+        })
+      }).catch(console.error)
+    }
+  }, [session])
 
   useEffect(() => {
     if (session) {
@@ -29,13 +45,6 @@ export default function Home() {
       loadSettings()
     }
   }, [session])
-
-  useEffect(() => {
-    if (code) {
-      // If we have a code, redirect to the proper callback endpoint
-      router.replace(`/auth/callback?code=${code}`)
-    }
-  }, [code, router])
 
   const loadGames = async () => {
     try {

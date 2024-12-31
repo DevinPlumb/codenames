@@ -50,7 +50,10 @@ export default function AuthComponent() {
         theme="dark"
         providers={[]}
         magicLink={false}
-        redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
+        onlyThirdPartyProviders={false}
+        queryParams={{
+          returnTo: typeof window !== 'undefined' ? window.location.origin : ''
+        }}
       />
     </div>
   )
