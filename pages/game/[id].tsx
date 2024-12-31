@@ -303,13 +303,15 @@ export default function GamePage() {
       }
 
       const res = await fetch(`/api/games/${id}`, {
-        method: 'POST',
+        method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'hint',
-          word: clueWord,
-          number: clueNumber
+          currentTeam: game.currentTeam,
+          gameState: game.gameState,
+          currentClue: clueWord,
+          currentNumber: clueNumber,
+          hint
         })
       })
 
@@ -329,11 +331,14 @@ export default function GamePage() {
 
     try {
       const res = await fetch(`/api/games/${id}`, {
-        method: 'POST',
+        method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'endTurn'
+          currentTeam: game.currentTeam === 'red' ? 'blue' : 'red',
+          gameState: game.gameState,
+          currentClue: null,
+          currentNumber: null
         })
       })
       const updatedGame = await res.json()
