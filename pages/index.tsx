@@ -35,7 +35,9 @@ export default function Home() {
           id: session.user.id,
           email: session.user.email
         })
-      }).catch(console.error)
+      }).catch(() => {
+        // Silently handle user creation errors
+      })
     }
   }, [session])
 
